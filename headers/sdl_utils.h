@@ -27,7 +27,7 @@ void SDLUtils_normalized_WriteSurfacePixel(SDL_Surface *surface, Vec2 norm_pixel
                                       RGBA color);
 
 void SDLUtils_normalized_FillSurfaceCircle(SDL_Surface *surface, double norm_radius,
-                                      Vec2 norm_position);
+                                      Vec2 norm_position, RGBA color);
 
 // using Bresenham's line algorithm
 void SDLUtils_FillSurfaceLineH(SDL_Surface *surface, Vec2 start, Vec2 end, RGBA color);

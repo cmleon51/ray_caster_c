@@ -9,6 +9,7 @@
 typedef struct {
     Vec2 position;
     double look_at;
+    double fov;
     double movement_speed;
     double rotation_speed;
 } Player;
