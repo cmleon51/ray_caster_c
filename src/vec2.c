@@ -33,6 +33,13 @@ void vec2_modify_length(Vec2 *vec, double target_length) {
     vec->y *= length_change;
 }
 
+void vec2_normalize(Vec2 *vec) {
+    double vec_length = vec2_get_length(vec);
+
+    vec->x /= vec_length;
+    vec->y /= vec_length;
+}
+
 Vec2 vec2_map_norm_coord(Vec2 vec_to_modify, double max_x,
                                   double max_y) {
     Vec2 result = {

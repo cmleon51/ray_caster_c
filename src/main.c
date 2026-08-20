@@ -115,23 +115,65 @@ void draw_player(Player *player, SDL_Surface *surface) {
     for (double current_angle = fov_start_at; current_angle < fov_end_at;
          current_angle++) {
         int wall_hit = 0;
-        Vec2 ray = vec2_from_angle(current_angle);
 
-        vec2_scale(&ray, CHECK_WALL_STEP);
+        Vec2 ray_start = vec2_map_norm_coord(player->position, MAP_SIZE, MAP_SIZE);
+        Vec2 ray_dir = vec2_from_angle(current_angle);
 
-        Vec2 ray_dir = ray;
+        vec2_normalize(&ray_dir);
 
-        vec2_add_vec2(&ray, player->position);
+        Vec2 ray_unit_step_size = {
+            .x = SDL_sqrt(1 + (ray_dir.y / ray_dir.x) * (ray_dir.y / ray_dir.x)),
+            .y = SDL_sqrt(1 + (ray_dir.x / ray_dir.y) * (ray_dir.x / ray_dir.y)),
+        };
 
-        while ((ray.x > 0.0 && ray.y > 0.0) && (ray.x < 1.0 && ray.y < 1.0) &&
-               !wall_hit) {
-            vec2_add_vec2(&ray, ray_dir);
-            Vec2 ray_map_pos = vec2_map_norm_coord(ray, MAP_SIZE, MAP_SIZE);
+        Vec2 map_check = {
+            .x = (int)ray_start.x,
+            .y = (int)ray_start.y
+        };
+        Vec2 ray_length_1d;
 
-            switch (map[(int)ray_map_pos.y][(int)ray_map_pos.x]) {
+        Vec2 step = {
+            .x = 0.0,
+            .y = 0.0
+        };
+
+        if (ray_dir.x < 0.0) {
+            step.x -= 1;
+            ray_length_1d.x = (ray_start.x - map_check.x) * ray_unit_step_size.x;
+        } else {
+            step.x += 1;
+            ray_length_1d.x = ((map_check.x + 1) - ray_start.x) * ray_unit_step_size.x;
+        }
+
+        if (ray_dir.y < 0.0) {
+            step.y -= 1;
+            ray_length_1d.y = (ray_start.y - map_check.y) * ray_unit_step_size.y;
+        } else {
+            step.y += 1;
+            ray_length_1d.y = ((map_check.y + 1) - ray_start.y) * ray_unit_step_size.y;
+        }
+
+        double distance = 0.0;
+        while (!wall_hit && distance < MAP_SIZE) {
+            if (ray_length_1d.x < ray_length_1d.y) {
+                map_check.x += step.x;
+                distance = ray_length_1d.x;
+                ray_length_1d.x += ray_unit_step_size.x;
+            } else {
+                map_check.y += step.y;
+                distance = ray_length_1d.y;
+                ray_length_1d.y += ray_unit_step_size.y;
+            }
+
+            switch (map[(int)map_check.y][(int)map_check.x]) {
             case Wall:
                 wall_hit = 1;
-                SDLUtils_normalized_FillSurfaceCircle(surface, 0.03, ray,
+                    Vec2 intersection = ray_start;
+                    vec2_scale(&ray_dir, distance);
+                    vec2_add_vec2(&intersection, ray_dir);
+                    vec2_scale(&intersection, 1.0 / MAP_SIZE);
+
+                SDLUtils_normalized_FillSurfaceCircle(surface, 0.03, intersection,
                                                       (RGBA){.r = 0xFF});
                 break;
             default:
