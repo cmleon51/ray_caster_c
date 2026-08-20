@@ -33,11 +33,11 @@ void vec2_modify_length(Vec2 *vec, double target_length) {
     vec->y *= length_change;
 }
 
-Vec2 vec2_map_to_coord(Vec2 vec_to_modify, int window_width,
-                                  int window_height) {
+Vec2 vec2_map_norm_coord(Vec2 vec_to_modify, double max_x,
+                                  double max_y) {
     Vec2 result = {
-        .x = MAP_NORMALIZED_COORDINATES(vec_to_modify.x, window_width),
-        .y = MAP_NORMALIZED_COORDINATES(vec_to_modify.y, window_height),
+        .x = vec_to_modify.x * max_x,
+        .y = vec_to_modify.y * max_y,
     };
 
     return result;

@@ -126,7 +126,7 @@ void draw_player(Player *player, SDL_Surface *surface) {
         while ((ray.x > 0.0 && ray.y > 0.0) && (ray.x < 1.0 && ray.y < 1.0) &&
                !wall_hit) {
             vec2_add_vec2(&ray, ray_dir);
-            Vec2 ray_map_pos = vec2_map_to_coord(ray, MAP_SIZE, MAP_SIZE);
+            Vec2 ray_map_pos = vec2_map_norm_coord(ray, MAP_SIZE, MAP_SIZE);
 
             switch (map[(int)ray_map_pos.y][(int)ray_map_pos.x]) {
             case Wall:

@@ -10,8 +10,8 @@ Uint32 SDLUtils_map_rgba(SDL_Surface *surface, RGBA color) {
 void SDLUtils_normalized_FillSurfaceRect(SDL_Surface *surface,
                                          Vec2 norm_rect_pos,
                                          Vec2 norm_rect_size, RGBA color) {
-    Vec2 rect_pos = vec2_map_to_coord(norm_rect_pos, surface->w, surface->h);
-    Vec2 rect_size = vec2_map_to_coord(norm_rect_size, surface->w, surface->h);
+    Vec2 rect_pos = vec2_map_norm_coord(norm_rect_pos, surface->w, surface->h);
+    Vec2 rect_size = vec2_map_norm_coord(norm_rect_size, surface->w, surface->h);
 
     SDL_Rect rect = {
         .x = SDL_round(rect_pos.x),
@@ -25,7 +25,7 @@ void SDLUtils_normalized_FillSurfaceRect(SDL_Surface *surface,
 
 void SDLUtils_normalized_WriteSurfacePixel(SDL_Surface *surface,
                                            Vec2 norm_pixel_pos, RGBA color) {
-    Vec2 pixel_pos = vec2_map_to_coord(norm_pixel_pos, surface->w, surface->h);
+    Vec2 pixel_pos = vec2_map_norm_coord(norm_pixel_pos, surface->w, surface->h);
 
     SDL_WriteSurfacePixel(surface, pixel_pos.x, pixel_pos.y, color.r, color.g,
                           color.b, color.a);
@@ -106,8 +106,8 @@ void SDLUtils_FillSurfaceLineV(SDL_Surface *surface, Vec2 start, Vec2 end,
 
 void SDLUtils_normalized_FillSurfaceLine(SDL_Surface *surface, Vec2 norm_start,
                                          Vec2 norm_end, RGBA color) {
-    Vec2 end = vec2_map_to_coord(norm_end, surface->w, surface->h);
-    Vec2 start = vec2_map_to_coord(norm_start, surface->w, surface->h);
+    Vec2 end = vec2_map_norm_coord(norm_end, surface->w, surface->h);
+    Vec2 start = vec2_map_norm_coord(norm_start, surface->w, surface->h);
 
     if (SDL_abs(end.x - start.x) > SDL_abs(end.y - start.y))
         SDLUtils_FillSurfaceLineH(surface, start, end, color);
@@ -118,8 +118,8 @@ void SDLUtils_normalized_FillSurfaceLine(SDL_Surface *surface, Vec2 norm_start,
 void SDLUtils_normalized_FillSurfaceCircle(SDL_Surface *surface,
                                            double norm_radius,
                                            Vec2 norm_position, RGBA color) {
-    Vec2 position = vec2_map_to_coord(norm_position, surface->w, surface->h);
-    double radius = MAP_NORMALIZED_COORDINATES(norm_radius, surface->w);
+    Vec2 position = vec2_map_norm_coord(norm_position, surface->w, surface->h);
+    double radius = norm_radius * surface->w;
 
     double t1 = radius / 16.0;
     double t2 = 0.0;

@@ -4,8 +4,6 @@
 #include <SDL3/SDL_stdinc.h>
 #include <SDL3/SDL_surface.h>
 
-#define MAP_NORMALIZED_COORDINATES(PIXEL, TOP) (PIXEL * TOP)
-
 typedef struct {
     double x;
     double y;
@@ -23,8 +21,8 @@ void vec2_scale(Vec2 *vec, double scale);
 
 void vec2_modify_length(Vec2 *vec, double target_length);
 
-Vec2 vec2_map_to_coord(Vec2 vec_to_modify, int window_width,
-                                  int window_height);
+Vec2 vec2_map_norm_coord(Vec2 vec_to_modify, double max_x,
+                                  double max_y);
 
 Vec2 vec2_from_angle(double angle);
 
