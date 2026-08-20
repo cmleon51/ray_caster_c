@@ -26,67 +26,158 @@
 #define PLAYER_RECT_WIDTH 0.02
 
 #define CHECK_WALL_STEP 0.01
-#define MAP_SIZE 10
+#define MAP_SIZE 24
 
 typedef enum {
-    Empty,
-    Wall,
+    EMPTY,
+    WHITE_WALL,
+    BLUE_WALL,
+    RED_WALL,
 } WallType;
 
 WallType map[MAP_SIZE][MAP_SIZE] = {
-    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, {1, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    {1, 0, 0, 0, 0, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    {1, 0, 0, 0, 0, 0, 0, 0, 0, 1}, {1, 0, 1, 1, 0, 0, 0, 0, 0, 1},
-    {1, 0, 0, 0, 0, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    {1, 0, 0, 0, 0, 0, 0, 0, 0, 1}, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2},
+    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 3, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 3, 3, 3, 0, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 3, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 3, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 3, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2},
 };
 
-void draw_map(SDL_Surface *surface) {
-    double square_side_len = 1.0 / MAP_SIZE;
-    double line_pos = 0.0;
-    Vec2 line_start = {.x = 0.0, .y = 0.0};
-    Vec2 line_end = {.x = 0.0, .y = 0.0};
+void draw_map(SDL_Surface *surface, Player *player) {
+    double half_fov = player->fov / 2.0;
+    double fov_end_at = player->look_at + half_fov;
+    double fov_start_at = player->look_at - half_fov;
 
-    for (int x = 0; x < MAP_SIZE; x++) {
-        line_pos = square_side_len * x;
+    int fov_to_display_ratio = surface->w / player->fov;
 
-        line_start = (Vec2){.x = line_pos, .y = 0.0};
-        line_end = (Vec2){.x = line_pos, .y = 1.0};
+    double player_look_at_rads = DEG_TO_RADS(player->look_at);
+    double normalized_fov_step = 1.0 / surface->w;
+    double current_x = 0.0;
 
-        SDLUtils_normalized_FillSurfaceLine(
-            surface, line_start, line_end,
-            (RGBA){.r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF});
-    }
+    for (double current_angle = fov_start_at; current_angle < fov_end_at;
+         current_angle++) {
+        Vec2 ray_start = vec2_map_norm_coord(player->position, MAP_SIZE, MAP_SIZE);
+        Vec2 ray_dir = vec2_from_angle(current_angle);
 
-    for (int y = 0; y < MAP_SIZE; y++) {
-        line_pos = square_side_len * y;
+        vec2_normalize(&ray_dir);
 
-        line_start = (Vec2){.x = 0.0, .y = line_pos};
-        line_end = (Vec2){.x = 1.0, .y = line_pos};
+        Vec2 ray_unit_step_size = {
+            .x = SDL_sqrt(1 + (ray_dir.y / ray_dir.x) * (ray_dir.y / ray_dir.x)),
+            .y = SDL_sqrt(1 + (ray_dir.x / ray_dir.y) * (ray_dir.x / ray_dir.y)),
+        };
 
-        SDLUtils_normalized_FillSurfaceLine(
-            surface, line_start, line_end,
-            (RGBA){.r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF});
-    }
+        Vec2 map_check = {
+            .x = (int)ray_start.x,
+            .y = (int)ray_start.y
+        };
+        Vec2 ray_length_1d;
 
-    Vec2 square_pos;
-    Vec2 square_size;
+        Vec2 step = {
+            .x = 0.0,
+            .y = 0.0
+        };
 
-    for (int i = 0; i < MAP_SIZE; i++) {
-        for (int j = 0; j < MAP_SIZE; j++) {
-            switch (map[i][j]) {
-            case Wall:
-                square_pos =
-                    (Vec2){.x = square_side_len * j, .y = square_side_len * i};
-                square_size =
-                    (Vec2){.x = square_side_len, .y = square_side_len};
+        if (ray_dir.x < 0.0) {
+            step.x -= 1;
+            ray_length_1d.x = (ray_start.x - map_check.x) * ray_unit_step_size.x;
+        } else {
+            step.x += 1;
+            ray_length_1d.x = ((map_check.x + 1) - ray_start.x) * ray_unit_step_size.x;
+        }
 
-                SDLUtils_normalized_FillSurfaceRect(
-                    surface, square_pos, square_size,
-                    (RGBA){.r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF});
+        if (ray_dir.y < 0.0) {
+            step.y -= 1;
+            ray_length_1d.y = (ray_start.y - map_check.y) * ray_unit_step_size.y;
+        } else {
+            step.y += 1;
+            ray_length_1d.y = ((map_check.y + 1) - ray_start.y) * ray_unit_step_size.y;
+        }
+
+        double distance = 0.0;
+        WallType wall_hit = EMPTY;
+
+        while (wall_hit == EMPTY && distance < MAP_SIZE) {
+            if (ray_length_1d.x < ray_length_1d.y) {
+                map_check.x += step.x;
+                distance = ray_length_1d.x;
+                ray_length_1d.x += ray_unit_step_size.x;
+            } else {
+                map_check.y += step.y;
+                distance = ray_length_1d.y;
+                ray_length_1d.y += ray_unit_step_size.y;
+            }
+
+            wall_hit = map[(int)map_check.y][(int)map_check.x];
+        }
+
+        if (wall_hit != EMPTY) {
+            distance *= SDL_cos(DEG_TO_RADS(current_angle) - player_look_at_rads);
+            double half_wall_length = ((surface->h / distance) / surface->h) / 2.0;
+            RGBA wall_color;
+
+            half_wall_length = half_wall_length > 0.5 ? 0.5 : half_wall_length;
+
+            switch (wall_hit) {
+                case WHITE_WALL:
+                    wall_color = (RGBA) {
+                        .r = 0xFF,
+                        .g = 0xFF,
+                        .b = 0xFF,
+                        .a = 0xFF,
+                    };
+                    break;
+                case BLUE_WALL:
+                    wall_color = (RGBA) {
+                        .r = 0x00,
+                        .g = 0x00,
+                        .b = 0xFF,
+                        .a = 0xFF,
+                    };
                 break;
-            default:
-                break;
+                case RED_WALL:
+                    wall_color = (RGBA) {
+                        .r = 0xFF,
+                        .g = 0x00,
+                        .b = 0x00,
+                        .a = 0xFF,
+                    };
+                    break;
+                default:
+                    break;
+            }
+
+            for (int x = 0; x <= fov_to_display_ratio; x++) {
+                Vec2 wall_start = {
+                    .x = current_x,
+                    .y = 0.5 - half_wall_length,
+                };
+                Vec2 wall_end = {
+                    .x = current_x,
+                    .y = 0.5 + half_wall_length,
+                };
+
+                SDLUtils_normalized_FillSurfaceLine(surface, wall_start, wall_end, wall_color);
+
+                current_x += normalized_fov_step;
             }
         }
     }
@@ -166,7 +257,7 @@ void draw_player(Player *player, SDL_Surface *surface) {
             }
 
             switch (map[(int)map_check.y][(int)map_check.x]) {
-            case Wall:
+            case WHITE_WALL:
                 wall_hit = 1;
                     Vec2 intersection = ray_start;
                     vec2_scale(&ray_dir, distance);
@@ -250,8 +341,7 @@ int main(void) {
 
         SDL_ClearSurface(surface, 0x00, 0x00, 0x00, 0xFF);
 
-        draw_map(surface);
-        draw_player(&player, surface);
+        draw_map(surface, &player);
 
         SDL_UpdateWindowSurface(window);
 

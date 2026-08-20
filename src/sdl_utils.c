@@ -109,6 +109,15 @@ void SDLUtils_normalized_FillSurfaceLine(SDL_Surface *surface, Vec2 norm_start,
     Vec2 end = vec2_map_norm_coord(norm_end, surface->w, surface->h);
     Vec2 start = vec2_map_norm_coord(norm_start, surface->w, surface->h);
 
+    end = (Vec2) {
+        .x = SDL_round(end.x),
+        .y = SDL_round(end.y)
+    };
+    start = (Vec2) {
+        .x = SDL_round(start.x),
+        .y = SDL_round(start.y)
+    };
+
     if (SDL_abs(end.x - start.x) > SDL_abs(end.y - start.y))
         SDLUtils_FillSurfaceLineH(surface, start, end, color);
     else
@@ -119,7 +128,12 @@ void SDLUtils_normalized_FillSurfaceCircle(SDL_Surface *surface,
                                            double norm_radius,
                                            Vec2 norm_position, RGBA color) {
     Vec2 position = vec2_map_norm_coord(norm_position, surface->w, surface->h);
-    double radius = norm_radius * surface->w;
+    double radius = SDL_round(norm_radius * surface->w);
+
+    position = (Vec2) {
+        .x = SDL_round(position.x),
+        .y = SDL_round(position.y)
+    };
 
     double t1 = radius / 16.0;
     double t2 = 0.0;

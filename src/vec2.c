@@ -50,11 +50,11 @@ Vec2 vec2_map_norm_coord(Vec2 vec_to_modify, double max_x,
     return result;
 }
 
-Vec2 vec2_from_angle(double angle) {
-    angle *= SDL_PI_F / 180.0;
+Vec2 vec2_from_angle(double degs) {
+    degs = DEG_TO_RADS(degs);
 
-    double cos_a = SDL_cos(angle);
-    double sin_a = SDL_sin(angle);
+    double cos_a = SDL_cos(degs);
+    double sin_a = SDL_sin(degs);
 
     return (Vec2){ .x = cos_a, .y = sin_a };
 }

@@ -4,6 +4,8 @@
 #include <SDL3/SDL_stdinc.h>
 #include <SDL3/SDL_surface.h>
 
+#define DEG_TO_RADS(deg_angle) (deg_angle * SDL_PI_D / 180.0)
+
 typedef struct {
     double x;
     double y;
@@ -26,7 +28,7 @@ void vec2_normalize(Vec2 *vec);
 Vec2 vec2_map_norm_coord(Vec2 vec_to_modify, double max_x,
                                   double max_y);
 
-Vec2 vec2_from_angle(double angle);
+Vec2 vec2_from_angle(double degs);
 
 double vec2_get_length(Vec2 *vec);
 
