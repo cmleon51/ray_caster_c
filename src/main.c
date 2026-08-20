@@ -147,15 +147,15 @@ void draw_map(SDL_Surface *surface, Player *player) {
                     break;
                 case BLUE_WALL:
                     wall_color = (RGBA) {
-                        .r = 0x00,
-                        .g = 0x00,
-                        .b = 0xFF,
+                        .r = 0x1E,
+                        .g = 0x3A,
+                        .b = 0x8A,
                         .a = 0xFF,
                     };
                 break;
                 case RED_WALL:
                     wall_color = (RGBA) {
-                        .r = 0xFF,
+                        .r = 0xCF,
                         .g = 0x00,
                         .b = 0x00,
                         .a = 0xFF,
@@ -298,6 +298,7 @@ int main(void) {
                      .fov = 90.0,
                      .movement_speed = 0.8,
                      .rotation_speed = 500.0};
+    Vec2 old_player_pos = player.position;
 
     SDL_Event event;
 
@@ -330,6 +331,8 @@ int main(void) {
 
         const bool *key_states = SDL_GetKeyboardState(NULL);
 
+        old_player_pos = player.position;
+
         if (key_states[SDL_SCANCODE_W])
             player_move(&player, FORWARD, delta_time);
         if (key_states[SDL_SCANCODE_S])
@@ -338,6 +341,10 @@ int main(void) {
             player_rotate(&player, LEFT, delta_time);
         if (key_states[SDL_SCANCODE_D])
             player_rotate(&player, RIGHT, delta_time);
+
+        Vec2 player_pos_in_map = vec2_map_norm_coord(player.position, MAP_SIZE, MAP_SIZE);
+        if (map[(int)player_pos_in_map.y][(int)player_pos_in_map.x] != EMPTY)
+            player.position = old_player_pos;
 
         SDL_ClearSurface(surface, 0x00, 0x00, 0x00, 0xFF);
 
