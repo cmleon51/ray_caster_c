@@ -1,4 +1,4 @@
-#include "linear_algebra/vec2.h"
+#include <linear_algebra/vec2.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_events.h>
@@ -91,10 +91,7 @@ void draw_map(SDL_Surface *surface, Player *player) {
         };
         Vec2 ray_length_1d;
 
-        Vec2 step = {
-            .x = 0.0,
-            .y = 0.0
-        };
+        Vec2 step = {};
 
         if (ray_dir.x < 0.0) {
             step.x -= 1;
@@ -229,11 +226,7 @@ void draw_player(Player *player, SDL_Surface *surface) {
             .y = (int)ray_start.y
         };
         Vec2 ray_length_1d;
-
-        Vec2 step = {
-            .x = 0.0,
-            .y = 0.0
-        };
+        Vec2 step = {};
 
         if (ray_dir.x < 0.0) {
             step.x -= 1;
@@ -328,7 +321,7 @@ int main(void) {
             case SDL_EVENT_WINDOW_RESIZED:
                 if (!SDL_GetWindowSize(window, NULL, NULL)) {
                     SDL_Log("Panicked getting window size: %s", SDL_GetError());
-                    exit(1);
+                    return SDL_APP_FAILURE;
                 }
 
                 surface = SDL_GetWindowSurface(window);

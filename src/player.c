@@ -1,6 +1,4 @@
-#include "vec2.h"
 #include <player.h>
-#include <stdlib.h>
 
 void player_move(Player *player, Direction direction, double delta_time) {
     Vec2 look_at_vector = vec2_from_angle(player->look_at);
@@ -14,10 +12,9 @@ void player_move(Player *player, Direction direction, double delta_time) {
         vec2_subtract_vec2(&player->position, look_at_vector);
         break;
     default:
-        SDL_Log("The provided direction: %d is not yet implemented in function "
-                "'player_move'",
-                direction);
-        exit(1);
+        SDL_Log("The provided direction: %d is not yet implemented in function %s",
+                direction, __FUNCTION__);
+        exit(SDL_APP_FAILURE);
         break;
     };
 }
@@ -31,10 +28,9 @@ void player_rotate(Player *player, Direction direction, double delta_time) {
         player->look_at += player->rotation_speed * delta_time;
         break;
     default:
-        SDL_Log("The provided direction: %d is not yet implemented in function "
-                "'player_rotate'",
-                direction);
-        exit(1);
+        SDL_Log("The provided direction: %d is not yet implemented in function %s",
+                direction, __FUNCTION__);
+        exit(SDL_APP_FAILURE);
         break;
     }
 }
