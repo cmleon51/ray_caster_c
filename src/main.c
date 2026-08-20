@@ -183,6 +183,13 @@ void draw_map(SDL_Surface *surface, Player *player) {
     }
 }
 
+void draw_sky_ground(SDL_Surface *surface, RGBA sky_color, RGBA ground_color) {
+    long half_surface_pixels = surface->w * surface->h / 2;
+
+    memset(surface->pixels, SDLUtils_map_rgba(surface, sky_color), half_surface_pixels * sizeof(Uint32));
+    memset(surface->pixels + (half_surface_pixels * sizeof(Uint32)), SDLUtils_map_rgba(surface, ground_color), (half_surface_pixels - 1) * sizeof(Uint32));
+}
+
 void draw_player(Player *player, SDL_Surface *surface) {
     Vec2 player_sprite_pos = {.x = player->position.x, .y = player->position.y};
     vec2_subtract_double(&player_sprite_pos, (PLAYER_RECT_WIDTH / 2.0));
@@ -348,6 +355,7 @@ int main(void) {
 
         SDL_ClearSurface(surface, 0x00, 0x00, 0x00, 0xFF);
 
+        draw_sky_ground(surface, (RGBA) { 0x57, 0x57, 0x57, 0xFF }, (RGBA) { 0x71, 0x71, 0x71, 0xFF });
         draw_map(surface, &player);
 
         SDL_UpdateWindowSurface(window);
