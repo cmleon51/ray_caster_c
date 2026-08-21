@@ -63,18 +63,12 @@ WallType map[MAP_SIZE][MAP_SIZE] = {
 };
 
 void draw_map(SDL_Surface *surface, Player *player) {
-    double half_fov = player->fov / 2.0;
-    double fov_end_at = player->look_at + half_fov;
-    double fov_start_at = player->look_at - half_fov;
-
-    int fov_to_display_ratio = surface->w / player->fov;
-
     double player_look_at_rads = DEG_TO_RADS(player->look_at);
-    double normalized_fov_step = 1.0 / surface->w;
-    double current_x = 0.0;
 
-    for (double current_angle = fov_start_at; current_angle < fov_end_at;
-         current_angle++) {
+    double current_angle = player->look_at - (player->fov / 2.0);
+    double display_to_fov_ratio = player->fov / surface->w;
+
+    for (int x = 0; x < surface->w; x++) {
         Vec2 ray_start = vec2_map_norm_coord(player->position, MAP_SIZE, MAP_SIZE);
         Vec2 ray_dir = vec2_from_angle(current_angle);
 
@@ -162,21 +156,19 @@ void draw_map(SDL_Surface *surface, Player *player) {
                     break;
             }
 
-            for (int x = 0; x <= fov_to_display_ratio; x++) {
-                Vec2 wall_start = {
-                    .x = current_x,
-                    .y = 0.5 - half_wall_length,
-                };
-                Vec2 wall_end = {
-                    .x = current_x,
-                    .y = 0.5 + half_wall_length,
-                };
+            Vec2 wall_start = {
+                .x = (double)x / surface->w,
+                .y = 0.5 - half_wall_length,
+            };
+            Vec2 wall_end = {
+                .x = (double)x / surface->w,
+                .y = 0.5 + half_wall_length,
+            };
 
-                SDLUtils_normalized_FillSurfaceLine(surface, wall_start, wall_end, wall_color);
-
-                current_x += normalized_fov_step;
-            }
+            SDLUtils_normalized_FillSurfaceLine(surface, wall_start, wall_end, wall_color);
         }
+
+        current_angle += display_to_fov_ratio;
     }
 }
 
