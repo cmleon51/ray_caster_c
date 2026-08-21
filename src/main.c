@@ -62,7 +62,7 @@ WallType map[MAP_SIZE][MAP_SIZE] = {
     {1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2},
 };
 
-void draw_map(SDL_Surface *surface, Player *player) {
+void draw_map(SDL_Surface *surface, Player *player, int y_side_darkener) {
     double player_look_at_rads = DEG_TO_RADS(player->look_at);
 
     double current_angle = player->look_at - (player->fov / 2.0);
@@ -104,6 +104,7 @@ void draw_map(SDL_Surface *surface, Player *player) {
         }
 
         double distance = 0.0;
+        int side_hit = 0;
         WallType wall_hit = EMPTY;
 
         while (wall_hit == EMPTY && distance < MAP_SIZE) {
@@ -111,10 +112,12 @@ void draw_map(SDL_Surface *surface, Player *player) {
                 map_check.x += step.x;
                 distance = ray_length_1d.x;
                 ray_length_1d.x += ray_unit_step_size.x;
+                side_hit = 0;
             } else {
                 map_check.y += step.y;
                 distance = ray_length_1d.y;
                 ray_length_1d.y += ray_unit_step_size.y;
+                side_hit = 1;
             }
 
             wall_hit = map[(int)map_check.y][(int)map_check.x];
@@ -154,6 +157,12 @@ void draw_map(SDL_Surface *surface, Player *player) {
                     break;
                 default:
                     break;
+            }
+
+            if (side_hit == 1) {
+                wall_color.r = wall_color.r >> y_side_darkener;
+                wall_color.g = wall_color.g >> y_side_darkener;
+                wall_color.b = wall_color.b >> y_side_darkener;
             }
 
             Vec2 wall_start = {
@@ -348,7 +357,7 @@ int main(void) {
         SDL_ClearSurface(surface, 0x00, 0x00, 0x00, 0xFF);
 
         draw_sky_ground(surface, (RGBA) { 0x57, 0x57, 0x57, 0xFF }, (RGBA) { 0x71, 0x71, 0x71, 0xFF });
-        draw_map(surface, &player);
+        draw_map(surface, &player, 1);
 
         SDL_UpdateWindowSurface(window);
 
