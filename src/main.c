@@ -288,8 +288,8 @@ int main(void) {
     Player player = {.position = {.x = 0.5, .y = 0.5},
                      .look_at = 0.0,
                      .fov = 90.0,
-                     .movement_speed = 0.8,
-                     .rotation_speed = 500.0};
+                     .movement_speed = 0.4,
+                     .rotation_speed = 200.0};
     Vec2 old_player_pos = player.position;
 
     SDL_Event event;
@@ -297,13 +297,20 @@ int main(void) {
     int keep_window_open = 1;
 
     SDL_Time time_start_loop = 0;
+    SDL_Time prev_time_start_loop = 0;
     SDL_Time time_end_loop = 0;
     double delta_time = 0.0;
+    double fps_count = 0.0;
 
     while (keep_window_open) {
+        fps_count = NS_TO_S(time_end_loop - time_start_loop);
         SDL_GetCurrentTime(&time_start_loop);
-        delta_time = NS_TO_S(time_start_loop - time_end_loop) + MIN_DELTA_TIME;
-        SDL_Log("FPS: %f", 1.0 / delta_time);
+
+        delta_time = NS_TO_S(time_start_loop - prev_time_start_loop);
+
+        SDL_GetCurrentTime(&prev_time_start_loop);
+
+        SDL_Log("FPS: %f", 1.0 / fps_count);
 
         while (SDL_PollEvent(&event) > 0) {
             switch (event.type) {
