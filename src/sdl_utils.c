@@ -1,3 +1,4 @@
+#include "vec2.h"
 #include <sdl_utils.h>
 
 Uint32 SDLUtils_map_rgba(SDL_Surface *surface, RGBA color) {
@@ -31,97 +32,35 @@ void SDLUtils_normalized_WriteSurfacePixel(SDL_Surface *surface,
                           color.b, color.a);
 }
 
-// using Bresenham's line algorithm
-void SDLUtils_FillSurfaceLineH(SDL_Surface *surface, Vec2 start, Vec2 end,
-                               RGBA color) {
-    if (start.x > end.x) {
-        double tmp = start.x;
-        start.x = end.x;
-        end.x = tmp;
-
-        tmp = start.y;
-        start.y = end.y;
-        end.y = tmp;
-    }
-
-    Vec2 dvec = end;
-    vec2_subtract_vec2(&dvec, start);
-
-    int dir = dvec.y < 0 ? -1 : 1;
-    dvec.y *= dir;
-
-    if (dvec.x != 0) {
-        int y = start.y;
-        int derivative = 2 * dvec.y - dvec.x;
-
-        for (int x = start.x; x < end.x; x++) {
-            SDL_WriteSurfacePixel(surface, x, y, color.r, color.g, color.b,
-                                  color.a);
-
-            if (derivative >= 0) {
-                y += dir;
-                derivative -= 2 * dvec.x;
-            }
-
-            derivative += 2 * dvec.y;
-        }
-    }
-}
-
-void SDLUtils_FillSurfaceLineV(SDL_Surface *surface, Vec2 start, Vec2 end,
-                               RGBA color) {
-    if (start.y > end.y) {
-        double tmp = start.x;
-        start.x = end.x;
-        end.x = tmp;
-
-        tmp = start.y;
-        start.y = end.y;
-        end.y = tmp;
-    }
-
-    Vec2 dvec = end;
-    vec2_subtract_vec2(&dvec, start);
-
-    int dir = dvec.x < 0 ? -1 : 1;
-    dvec.x *= dir;
-
-    if (dvec.y != 0) {
-        int x = start.x;
-        int derivative = 2 * dvec.x - dvec.y;
-
-        for (int y = start.y; y < end.y; y++) {
-            SDL_WriteSurfacePixel(surface, x, y, color.r, color.g, color.b,
-                                  color.a);
-
-            if (derivative >= 0) {
-                x += dir;
-                derivative -= 2 * dvec.y;
-            }
-
-            derivative += 2 * dvec.x;
-        }
-    }
-}
-
 void SDLUtils_normalized_FillSurfaceLine(SDL_Surface *surface, Vec2 norm_start,
                                          Vec2 norm_end, RGBA color) {
     Vec2 end = vec2_map_norm_coord(norm_end, surface->w, surface->h);
     Vec2 start = vec2_map_norm_coord(norm_start, surface->w, surface->h);
 
-    end = (Vec2) {
-        .x = SDL_round(end.x),
-        .y = SDL_round(end.y)
-    };
-    start = (Vec2) {
-        .x = SDL_round(start.x),
-        .y = SDL_round(start.y)
-    };
+     end = (Vec2) {
+         .x = SDL_round(end.x),
+         .y = SDL_round(end.y)
+     };
+     start = (Vec2) {
+         .x = SDL_round(start.x),
+         .y = SDL_round(start.y)
+     };
 
-    if (SDL_abs(end.x - start.x) > SDL_abs(end.y - start.y))
-        SDLUtils_FillSurfaceLineH(surface, start, end, color);
-    else
-        SDLUtils_FillSurfaceLineV(surface, start, end, color);
+    Vec2 ray_dir = end;
+    vec2_subtract_vec2(&ray_dir, start);
+
+    int steps = SDL_abs(ray_dir.x) > SDL_abs(ray_dir.y) ? SDL_abs(ray_dir.x) : SDL_abs(ray_dir.y);
+
+    double x_inc = ray_dir.x / (double)steps;
+    double y_inc = ray_dir.y / (double)steps;
+
+    for (int i = 0; i <= steps; i++) {
+        SDL_WriteSurfacePixel(surface, start.x, start.y, color.r, color.g, color.b,
+                              color.a);
+
+        start.x += x_inc;
+        start.y += y_inc;
+    }
 }
 
 void SDLUtils_normalized_FillSurfaceCircle(SDL_Surface *surface,
