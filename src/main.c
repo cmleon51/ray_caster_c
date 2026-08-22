@@ -1,3 +1,5 @@
+#include <SDL3/SDL_cpuinfo.h>
+#include <SDL3/SDL_thread.h>
 #include <linear_algebra/vec2.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_error.h>
@@ -62,13 +64,29 @@ WallType map[MAP_SIZE][MAP_SIZE] = {
     {1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2},
 };
 
-void draw_map(SDL_Surface *surface, Player *player, int y_side_darkener) {
+typedef struct {
+    Player *player;
+    SDL_Surface *surface;
+    int start_x;
+    int end_x;
+    int y_side_darkener;
+} MapPortion;
+
+int draw_map_portion(void *args) {
+    MapPortion *map_portion = (MapPortion*)args;
+
+    Player *player = map_portion->player;
+    SDL_Surface *surface = map_portion->surface;
+    int y_side_darkener = map_portion->y_side_darkener;
+
     double player_look_at_rads = DEG_TO_RADS(player->look_at);
 
     double current_angle = player->look_at - (player->fov / 2.0);
     double display_to_fov_ratio = player->fov / surface->w;
 
-    for (int x = 0; x < surface->w; x++) {
+    current_angle += (display_to_fov_ratio * map_portion->start_x);
+
+    for (int x = map_portion->start_x; x < map_portion->end_x; x++) {
         Vec2 ray_start = vec2_map_norm_coord(player->position, MAP_SIZE, MAP_SIZE);
         Vec2 ray_dir = vec2_from_angle(current_angle);
 
@@ -178,6 +196,37 @@ void draw_map(SDL_Surface *surface, Player *player, int y_side_darkener) {
         }
 
         current_angle += display_to_fov_ratio;
+    }
+
+    return 0;
+}
+
+void draw_map(SDL_Surface *surface, Player *player, int y_side_darkener, int max_threads) {
+    MapPortion portions[max_threads] = {};
+    SDL_Thread *threads[max_threads] = {};
+    int map_portion_step = surface->w / max_threads;
+
+    for (int i = 0; i < max_threads; i++) {
+        int start_x = map_portion_step * i;
+        int end_x = start_x + map_portion_step;
+
+        if (i == max_threads - 1 && end_x != surface->w) {
+            end_x = surface->w;
+        }
+
+        portions[i] = (MapPortion) {
+            .player = player,
+            .surface = surface,
+            .start_x = start_x,
+            .end_x = end_x,
+            .y_side_darkener = y_side_darkener,
+        };
+
+        threads[i] = SDL_CreateThread(draw_map_portion, "thread", &portions[i]);
+    }
+
+    for (int i = 0; i < max_threads; i++) {
+        SDL_WaitThread(threads[i], NULL);
     }
 }
 
@@ -301,6 +350,8 @@ int main(void) {
                      .rotation_speed = 200.0};
     Vec2 old_player_pos = player.position;
 
+    int max_threads = SDL_GetNumLogicalCPUCores();
+
     SDL_Event event;
 
     int keep_window_open = 1;
@@ -357,7 +408,7 @@ int main(void) {
         SDL_ClearSurface(surface, 0x00, 0x00, 0x00, 0xFF);
 
         draw_sky_ground(surface, (RGBA) { 0x57, 0x57, 0x57, 0xFF }, (RGBA) { 0x71, 0x71, 0x71, 0xFF });
-        draw_map(surface, &player, 1);
+        draw_map(surface, &player, 1, max_threads);
 
         SDL_UpdateWindowSurface(window);
 
