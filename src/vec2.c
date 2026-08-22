@@ -60,5 +60,5 @@ Vec2 vec2_from_angle(double degs) {
 }
 
 double vec2_get_length(Vec2 *vec) {
-    return SDL_sqrt((SDL_pow(vec->x, 2.0) + SDL_pow(vec->y, 2.0)));
+    return SDL_sqrt(vec->x * vec->x + vec->y * vec->y);
 }

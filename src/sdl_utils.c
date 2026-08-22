@@ -1,4 +1,5 @@
 #include "vec2.h"
+#include <SDL3/SDL_surface.h>
 #include <sdl_utils.h>
 
 Uint32 SDLUtils_map_rgba(SDL_Surface *surface, RGBA color) {
@@ -37,30 +38,56 @@ void SDLUtils_normalized_FillSurfaceLine(SDL_Surface *surface, Vec2 norm_start,
     Vec2 end = vec2_map_norm_coord(norm_end, surface->w, surface->h);
     Vec2 start = vec2_map_norm_coord(norm_start, surface->w, surface->h);
 
-     end = (Vec2) {
-         .x = SDL_round(end.x),
-         .y = SDL_round(end.y)
-     };
-     start = (Vec2) {
-         .x = SDL_round(start.x),
-         .y = SDL_round(start.y)
-     };
+    end = (Vec2) {
+        .x = SDL_round(end.x),
+        .y = SDL_round(end.y)
+    };
+    start = (Vec2) {
+        .x = SDL_round(start.x),
+        .y = SDL_round(start.y)
+    };
+
+    if ((int)end.x >= surface->w) {
+        end.x = surface->w - 1;
+    }
+    if ((int)end.y >= surface->h) {
+        end.y = surface->h - 1;
+    }
+    if ((int)start.x < 0) {
+        start.x = 0;
+    }
+    if ((int)start.y < 0) {
+        start.y = 0;
+    }
 
     Vec2 ray_dir = end;
     vec2_subtract_vec2(&ray_dir, start);
 
-    int steps = SDL_abs(ray_dir.x) > SDL_abs(ray_dir.y) ? SDL_abs(ray_dir.x) : SDL_abs(ray_dir.y);
+    double steps = SDL_abs(ray_dir.x) > SDL_abs(ray_dir.y) ? SDL_abs(ray_dir.x) : SDL_abs(ray_dir.y);
 
-    double x_inc = ray_dir.x / (double)steps;
-    double y_inc = ray_dir.y / (double)steps;
+    double x_inc = ray_dir.x / steps;
+    double y_inc = ray_dir.y / steps;
 
-    for (int i = 0; i <= steps; i++) {
-        SDL_WriteSurfacePixel(surface, start.x, start.y, color.r, color.g, color.b,
-                              color.a);
+    const SDL_PixelFormatDetails *format = SDL_GetPixelFormatDetails(surface->format);
+    Uint32 pixel = SDL_MapRGBA(format, NULL, color.r, color.g, color.b, color.a);
+    int bpp = format->bytes_per_pixel;
+
+    if (SDL_MUSTLOCK(surface))
+        SDL_LockSurface(surface);
+
+    for (double i = 0; i <= steps; i++) {
+        int x = (int)start.x;
+        int y = (int)start.y;
+
+        Uint8 *dst = (Uint8 *)surface->pixels + y * surface->pitch + x * bpp;
+        SDL_memcpy(dst, &pixel, bpp);
 
         start.x += x_inc;
         start.y += y_inc;
     }
+
+    if (SDL_MUSTLOCK(surface))
+        SDL_UnlockSurface(surface);
 }
 
 void SDLUtils_normalized_FillSurfaceCircle(SDL_Surface *surface,

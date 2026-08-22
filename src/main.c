@@ -233,8 +233,8 @@ void draw_map(SDL_Surface *surface, Player *player, int y_side_darkener, int max
 void draw_sky_ground(SDL_Surface *surface, RGBA sky_color, RGBA ground_color) {
     long half_surface_pixels = surface->w * surface->h / 2;
 
-    memset(surface->pixels, SDLUtils_map_rgba(surface, sky_color), half_surface_pixels * sizeof(Uint32));
-    memset(surface->pixels + (half_surface_pixels * sizeof(Uint32)), SDLUtils_map_rgba(surface, ground_color), (half_surface_pixels - 1) * sizeof(Uint32));
+    SDL_memset(surface->pixels, SDLUtils_map_rgba(surface, sky_color), half_surface_pixels * sizeof(Uint32));
+    SDL_memset(surface->pixels + (half_surface_pixels * sizeof(Uint32)), SDLUtils_map_rgba(surface, ground_color), (half_surface_pixels - 1) * sizeof(Uint32));
 }
 
 void draw_player(Player *player, SDL_Surface *surface) {
