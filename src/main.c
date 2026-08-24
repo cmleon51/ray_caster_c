@@ -20,14 +20,6 @@
 #include <sdl_utils.h>
 #include <stdlib.h>
 
-#define WINDOW_HEIGHT 480
-#define WINDOW_WIDTH 640
-#define MIN_DELTA_TIME 0.001
-
-#define PLAYER_LOOK_AT_LENGTH 0.2
-#define PLAYER_RECT_WIDTH 0.02
-
-#define CHECK_WALL_STEP 0.01
 #define MAP_SIZE 24
 
 typedef enum {
@@ -237,93 +229,6 @@ void draw_sky_ground(SDL_Surface *surface, RGBA sky_color, RGBA ground_color) {
     SDL_memset(surface->pixels + (half_surface_pixels * sizeof(Uint32)), SDLUtils_map_rgba(surface, ground_color), (half_surface_pixels - 1) * sizeof(Uint32));
 }
 
-void draw_player(Player *player, SDL_Surface *surface) {
-    Vec2 player_sprite_pos = {.x = player->position.x, .y = player->position.y};
-    vec2_subtract_double(&player_sprite_pos, (PLAYER_RECT_WIDTH / 2.0));
-
-    SDLUtils_normalized_FillSurfaceCircle(
-        surface, 0.02, player->position,
-        (RGBA){.r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF});
-
-    Vec2 look_at = vec2_from_angle(player->look_at);
-    vec2_scale(&look_at, PLAYER_LOOK_AT_LENGTH);
-    vec2_add_vec2(&look_at, player->position);
-
-    SDLUtils_normalized_FillSurfaceLine(
-        surface, player->position, look_at,
-        (RGBA){.r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF});
-
-    double half_fov = player->fov / 2.0;
-    double fov_start_at = player->look_at - half_fov;
-    double fov_end_at = player->look_at + half_fov;
-
-    for (double current_angle = fov_start_at; current_angle < fov_end_at;
-         current_angle++) {
-        int wall_hit = 0;
-
-        Vec2 ray_start = vec2_map_norm_coord(player->position, MAP_SIZE, MAP_SIZE);
-        Vec2 ray_dir = vec2_from_angle(current_angle);
-
-        vec2_normalize(&ray_dir);
-
-        Vec2 ray_unit_step_size = {
-            .x = SDL_sqrt(1 + (ray_dir.y / ray_dir.x) * (ray_dir.y / ray_dir.x)),
-            .y = SDL_sqrt(1 + (ray_dir.x / ray_dir.y) * (ray_dir.x / ray_dir.y)),
-        };
-
-        Vec2 map_check = {
-            .x = (int)ray_start.x,
-            .y = (int)ray_start.y
-        };
-        Vec2 ray_length_1d;
-        Vec2 step = {};
-
-        if (ray_dir.x < 0.0) {
-            step.x -= 1;
-            ray_length_1d.x = (ray_start.x - map_check.x) * ray_unit_step_size.x;
-        } else {
-            step.x += 1;
-            ray_length_1d.x = ((map_check.x + 1) - ray_start.x) * ray_unit_step_size.x;
-        }
-
-        if (ray_dir.y < 0.0) {
-            step.y -= 1;
-            ray_length_1d.y = (ray_start.y - map_check.y) * ray_unit_step_size.y;
-        } else {
-            step.y += 1;
-            ray_length_1d.y = ((map_check.y + 1) - ray_start.y) * ray_unit_step_size.y;
-        }
-
-        double distance = 0.0;
-        while (!wall_hit && distance < MAP_SIZE) {
-            if (ray_length_1d.x < ray_length_1d.y) {
-                map_check.x += step.x;
-                distance = ray_length_1d.x;
-                ray_length_1d.x += ray_unit_step_size.x;
-            } else {
-                map_check.y += step.y;
-                distance = ray_length_1d.y;
-                ray_length_1d.y += ray_unit_step_size.y;
-            }
-
-            switch (map[(int)map_check.y][(int)map_check.x]) {
-            case WHITE_WALL:
-                wall_hit = 1;
-                    Vec2 intersection = ray_start;
-                    vec2_scale(&ray_dir, distance);
-                    vec2_add_vec2(&intersection, ray_dir);
-                    vec2_scale(&intersection, 1.0 / MAP_SIZE);
-
-                SDLUtils_normalized_FillSurfaceCircle(surface, 0.03, intersection,
-                                                      (RGBA){.r = 0xFF});
-                break;
-            default:
-                break;
-            }
-        }
-    }
-}
-
 int main(void) {
     SDL_SetAppMetadata("Ray Caster", "1.0", "com.ray_caster");
 
@@ -332,8 +237,9 @@ int main(void) {
         return SDL_APP_FAILURE;
     }
 
+    // specify 0, 0 in window width and height to let the window manager decide the window's size
     SDL_Window *window =
-        SDL_CreateWindow("Ray Caster", WINDOW_WIDTH, WINDOW_HEIGHT,
+        SDL_CreateWindow("Ray Caster", 0, 0,
                          SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 
     if (!window) {
