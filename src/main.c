@@ -20,17 +20,18 @@
 #include <player.h>
 #include <sdl_utils.h>
 #include <stdlib.h>
+#include <map.h>
 
 #define MAP_SIZE 24
 
-typedef enum {
+enum WallType{
     EMPTY,
     WHITE_WALL,
     BLUE_WALL,
     RED_WALL,
-} WallType;
+};
 
-WallType map[MAP_SIZE][MAP_SIZE] = {
+WallType map_2d[MAP_SIZE][MAP_SIZE] = {
     {1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2},
     {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
@@ -57,209 +58,45 @@ WallType map[MAP_SIZE][MAP_SIZE] = {
     {1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2},
 };
 
-typedef struct {
-    Player *player;
-    SDL_Surface *surface;
-    int thread_nr;
-    int max_threads;
-    SDL_Semaphore *starting_semaphore;
-    SDL_Semaphore *finished_semaphore;
-    SDL_AtomicInt *running;
-} MapPortion;
+RGBA get_wall_type_color(WallType wall, SIDE_HIT side_hit) {
+    RGBA wall_color = {};
 
-int draw_map_portion(void *args) {
-    MapPortion *map_portion = (MapPortion*)args;
-
-    Player *player = map_portion->player;
-    SDL_Surface *surface = map_portion->surface;
-    int thread_nr = map_portion->thread_nr;
-
-    while (SDL_GetAtomicInt(map_portion->running)) {
-        SDL_WaitSemaphore(map_portion->starting_semaphore);
-
-        int map_portion_step = surface->w / map_portion->max_threads;
-
-        int start_x = map_portion_step * thread_nr;
-        int end_x = start_x + map_portion_step;
-
-        if (thread_nr == map_portion->max_threads - 1 && end_x != surface->w) {
-            end_x = surface->w;
-        }
-
-        double player_look_at_rads = DEG_TO_RADS(player->look_at);
-
-        double current_angle = player->look_at - (player->fov / 2.0);
-        double display_to_fov_ratio = player->fov / surface->w;
-        int y_side_darkener = 1;
-
-        current_angle += (display_to_fov_ratio * start_x);
-
-        for (int x = start_x; x < end_x; x++) {
-            Vec2 ray_start = vec2_map_norm_coord(player->position, MAP_SIZE, MAP_SIZE);
-            Vec2 ray_dir = vec2_from_angle(current_angle);
-
-            vec2_normalize(&ray_dir);
-
-            Vec2 ray_unit_step_size = {
-                .x = SDL_sqrt(1 + (ray_dir.y / ray_dir.x) * (ray_dir.y / ray_dir.x)),
-                .y = SDL_sqrt(1 + (ray_dir.x / ray_dir.y) * (ray_dir.x / ray_dir.y)),
+    switch (wall) {
+        case WHITE_WALL:
+            wall_color = (RGBA) {
+                .r = 0xFF,
+                .g = 0xFF,
+                .b = 0xFF,
+                .a = 0xFF,
             };
-
-            Vec2 map_check = {
-                .x = (int)ray_start.x,
-                .y = (int)ray_start.y
+            break;
+        case BLUE_WALL:
+            wall_color = (RGBA) {
+                .r = 0x1E,
+                .g = 0x3A,
+                .b = 0x8A,
+                .a = 0xFF,
             };
-            Vec2 ray_length_1d;
-
-            Vec2 step = {};
-
-            if (ray_dir.x < 0.0) {
-                step.x -= 1;
-                ray_length_1d.x = (ray_start.x - map_check.x) * ray_unit_step_size.x;
-            } else {
-                step.x += 1;
-                ray_length_1d.x = ((map_check.x + 1) - ray_start.x) * ray_unit_step_size.x;
-            }
-
-            if (ray_dir.y < 0.0) {
-                step.y -= 1;
-                ray_length_1d.y = (ray_start.y - map_check.y) * ray_unit_step_size.y;
-            } else {
-                step.y += 1;
-                ray_length_1d.y = ((map_check.y + 1) - ray_start.y) * ray_unit_step_size.y;
-            }
-
-            double distance = 0.0;
-            int side_hit = 0;
-            WallType wall_hit = EMPTY;
-
-            while (wall_hit == EMPTY && distance < MAP_SIZE) {
-                if (ray_length_1d.x < ray_length_1d.y) {
-                    map_check.x += step.x;
-                    distance = ray_length_1d.x;
-                    ray_length_1d.x += ray_unit_step_size.x;
-                    side_hit = 0;
-                } else {
-                    map_check.y += step.y;
-                    distance = ray_length_1d.y;
-                    ray_length_1d.y += ray_unit_step_size.y;
-                    side_hit = 1;
-                }
-
-                wall_hit = map[(int)map_check.y][(int)map_check.x];
-            }
-
-            if (wall_hit != EMPTY) {
-                distance *= SDL_cos(DEG_TO_RADS(current_angle) - player_look_at_rads);
-                double half_wall_length = ((surface->h / distance) / surface->h) / 2.0;
-                RGBA wall_color;
-
-                half_wall_length = half_wall_length > 0.5 ? 0.5 : half_wall_length;
-
-                switch (wall_hit) {
-                    case WHITE_WALL:
-                        wall_color = (RGBA) {
-                            .r = 0xFF,
-                            .g = 0xFF,
-                            .b = 0xFF,
-                            .a = 0xFF,
-                        };
-                        break;
-                    case BLUE_WALL:
-                        wall_color = (RGBA) {
-                            .r = 0x1E,
-                            .g = 0x3A,
-                            .b = 0x8A,
-                            .a = 0xFF,
-                        };
-                        break;
-                    case RED_WALL:
-                        wall_color = (RGBA) {
-                            .r = 0xCF,
-                            .g = 0x00,
-                            .b = 0x00,
-                            .a = 0xFF,
-                        };
-                        break;
-                    default:
-                        break;
-                }
-
-                if (side_hit == 1) {
-                    wall_color.r = wall_color.r >> y_side_darkener;
-                    wall_color.g = wall_color.g >> y_side_darkener;
-                    wall_color.b = wall_color.b >> y_side_darkener;
-                }
-
-                Vec2 wall_start = {
-                    .x = (double)x / surface->w,
-                    .y = 0.5 - half_wall_length,
-                };
-                Vec2 wall_end = {
-                    .x = (double)x / surface->w,
-                    .y = 0.5 + half_wall_length,
-                };
-
-                SDLUtils_normalized_FillSurfaceLine(surface, wall_start, wall_end, wall_color);
-            }
-
-            current_angle += display_to_fov_ratio;
-        }
-
-        SDL_SignalSemaphore(map_portion->finished_semaphore);
+            break;
+        case RED_WALL:
+            wall_color = (RGBA) {
+                .r = 0xCF,
+                .g = 0x00,
+                .b = 0x00,
+                .a = 0xFF,
+            };
+            break;
+        default:
+            break;
     }
 
-    return 0;
-}
-
-void prepare_draw_map(SDL_Surface *surface, Player *player, MapPortion *portions, SDL_Thread **threads, int max_threads) {
-    SDL_AtomicInt *run = (SDL_AtomicInt *)malloc(sizeof(SDL_AtomicInt));
-
-    SDL_SetAtomicInt(run, 1);
-
-    for (int i = 0; i < max_threads; i++) {
-        SDL_Semaphore *semaphore = SDL_CreateSemaphore(0);
-        SDL_Semaphore *finished_semaphore = SDL_CreateSemaphore(0);
-
-        portions[i] = (MapPortion) {
-            .player = player,
-            .surface = surface,
-            .starting_semaphore = semaphore,
-            .running = run,
-            .max_threads = max_threads,
-            .thread_nr = i,
-            .finished_semaphore = finished_semaphore,
-        };
-
-        threads[i] = SDL_CreateThread(draw_map_portion, "thread", &portions[i]);
-    }
-}
-
-void draw_map(MapPortion *portions, int max_threads) {
-    for (int i = 0; i < max_threads; i++) {
-        SDL_Semaphore *semaphore = portions[i].starting_semaphore;
-        SDL_SignalSemaphore(semaphore);
+    if (side_hit == Y_SIDE) {
+        wall_color.r = wall_color.r >> 1;
+        wall_color.g = wall_color.g >> 1;
+        wall_color.b = wall_color.b >> 1;
     }
 
-    for (int i = 0; i < max_threads; i++) {
-        SDL_WaitSemaphore(portions[i].finished_semaphore);
-    }
-}
-
-void delete_map(MapPortion *portions, SDL_Thread **threads, int max_threads) {
-    SDL_SetAtomicInt(portions->running, 0);
-
-    for (int i = 0; i < max_threads; i++) {
-        SDL_Semaphore *semaphore = portions[i].starting_semaphore;
-        SDL_SignalSemaphore(semaphore);
-
-        SDL_WaitThread(threads[i], NULL);
-
-        SDL_DestroySemaphore(semaphore);
-        SDL_DestroySemaphore(portions[i].finished_semaphore);
-    }
-
-    free(portions->running);
+    return wall_color;
 }
 
 void draw_sky_ground(SDL_Surface *surface, RGBA sky_color, RGBA ground_color) {
@@ -296,11 +133,8 @@ int main(void) {
                      .rotation_speed = 200.0};
     Vec2 old_player_pos = player.position;
 
-    int max_threads = SDL_GetNumLogicalCPUCores();
-    MapPortion map_portions[max_threads];
-    SDL_Thread *threads[max_threads];
-
-    prepare_draw_map(surface, &player, map_portions, threads, max_threads);
+    Map map;
+    map_create(&map, &player, MAP_SIZE, MAP_SIZE, &map_2d[0][0], EMPTY, get_wall_type_color);
 
     SDL_Event event;
 
@@ -351,21 +185,21 @@ int main(void) {
         if (key_states[SDL_SCANCODE_D])
             player_rotate(&player, RIGHT, delta_time);
 
-        Vec2 player_pos_in_map = vec2_map_norm_coord(player.position, MAP_SIZE, MAP_SIZE);
-        if (map[(int)player_pos_in_map.y][(int)player_pos_in_map.x] != EMPTY)
+        Vec2 player_pos_in_map = vec2_map_norm_coord(player.position, map.map_width, map.map_height);
+        if (map_check_wall(&map, (int)player_pos_in_map.x, (int)player_pos_in_map.y) != EMPTY)
             player.position = old_player_pos;
 
         SDL_ClearSurface(surface, 0x00, 0x00, 0x00, 0xFF);
 
         draw_sky_ground(surface, (RGBA) { 0x57, 0x57, 0x57, 0xFF }, (RGBA) { 0x71, 0x71, 0x71, 0xFF });
-        draw_map(map_portions, max_threads);
+        map_draw(&map, surface);
 
         SDL_UpdateWindowSurface(window);
 
         SDL_GetCurrentTime(&time_end_loop);
     }
 
-    delete_map(map_portions, threads, max_threads);
+    map_delete(&map);
 
     SDL_DestroyWindow(window);
     SDL_DestroySurface(surface);
