@@ -1,3 +1,4 @@
+#include "vec2.h"
 #include <map.h>
 
 #include <SDL3/SDL_cpuinfo.h>
@@ -99,13 +100,22 @@ int map_draw_portion(void *args) {
             if (wall_hit != map_portion->map->wall_empty) {
                 double distance = side_hit == Y_SIDE ? distance_y : distance_x;
 
-                distance *= SDL_cos(DEG_TO_RADS(current_angle) - player_look_at_rads);
-                double half_wall_length = ((surface->h / distance) / surface->h) / 2.0;
-                SDL_Color wall_color;
+                double correct_perspective_distance = distance * SDL_cos(DEG_TO_RADS(current_angle) - player_look_at_rads);
+                int full_wall_height = (int)(surface->h / correct_perspective_distance);
+                int wall_height = full_wall_height > surface->h ? surface->h : full_wall_height;
+                int wall_height_clip = (full_wall_height - wall_height) / 2;
 
-                half_wall_length = half_wall_length > 0.5 ? 0.5 : half_wall_length;
+                double half_wall_length = ((double)wall_height / surface->h) / 2.0;
+                SDL_Color stripe_colors[wall_height];
 
-                wall_color = map_portion->map->get_wall_type_color(wall_hit, side_hit);
+                double wall_column_hit = 0.0;
+
+                if (side_hit == X_SIDE)
+                    wall_column_hit = ray_start.y + distance * ray_dir.y;
+                else
+                    wall_column_hit = ray_start.x + distance * ray_dir.x;
+
+                wall_column_hit -= SDL_floor(wall_column_hit);
 
                 Vec2 wall_start = {
                     .x = (double)x / surface->w,
@@ -116,7 +126,12 @@ int map_draw_portion(void *args) {
                     .y = 0.5 + half_wall_length,
                 };
 
-                SDLUtils_normalized_FillSurfaceLine(surface, wall_start, wall_end, wall_color);
+                int current_stripe = 0;
+                for (int y = 0; y < wall_height; y++) {
+                    stripe_colors[current_stripe++] = map_portion->map->get_wall_type_color(wall_hit, side_hit, wall_column_hit, full_wall_height, y + wall_height_clip);
+                }
+
+                SDLUtils_normalized_FillSurfaceLine(surface, wall_start, wall_end, stripe_colors, wall_height);
             }
 
             current_angle += display_to_fov_ratio;
@@ -129,7 +144,7 @@ int map_draw_portion(void *args) {
 }
 
 void map_create(Map *map_to_fill, Player *player, int map_width, int map_height, WallType *map_2d, WallType wall_empty,
-                SDL_Color (*get_wall_type_color)(WallType wall, SIDE_HIT side_hit)) {
+                SDL_Color (*get_wall_type_color)(WallType wall, SIDE_HIT side_hit, double wall_column_hit, int wall_height, int y_hit)) {
     int max_threads = SDL_GetNumLogicalCPUCores();
 
     MapPortion *portions = (MapPortion *)malloc(sizeof(MapPortion) * max_threads);

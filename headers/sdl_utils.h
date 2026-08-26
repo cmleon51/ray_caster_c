@@ -23,6 +23,6 @@ void SDLUtils_normalized_FillSurfaceCircle(SDL_Surface *surface, double norm_rad
                                       Vec2 norm_position, SDL_Color color);
 
 void SDLUtils_normalized_FillSurfaceLine(SDL_Surface *surface, Vec2 norm_start,
-                                    Vec2 norm_end, SDL_Color color);
+                                    Vec2 norm_end, SDL_Color *colors, int colors_count);
 
 #endif

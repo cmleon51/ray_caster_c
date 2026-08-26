@@ -34,7 +34,7 @@ void SDLUtils_normalized_WriteSurfacePixel(SDL_Surface *surface,
 }
 
 void SDLUtils_normalized_FillSurfaceLine(SDL_Surface *surface, Vec2 norm_start,
-                                         Vec2 norm_end, SDL_Color color) {
+                                         Vec2 norm_end, SDL_Color *colors, int colors_count) {
     Vec2 end = vec2_map_norm_coord(norm_end, surface->w, surface->h);
     Vec2 start = vec2_map_norm_coord(norm_start, surface->w, surface->h);
 
@@ -68,8 +68,9 @@ void SDLUtils_normalized_FillSurfaceLine(SDL_Surface *surface, Vec2 norm_start,
     double x_inc = ray_dir.x / steps;
     double y_inc = ray_dir.y / steps;
 
+    int current_color = 0;
+
     const SDL_PixelFormatDetails *format = SDL_GetPixelFormatDetails(surface->format);
-    Uint32 pixel = SDL_MapRGBA(format, NULL, color.r, color.g, color.b, color.a);
     int bpp = format->bytes_per_pixel;
 
     if (SDL_MUSTLOCK(surface))
@@ -79,11 +80,16 @@ void SDLUtils_normalized_FillSurfaceLine(SDL_Surface *surface, Vec2 norm_start,
         int x = (int)start.x;
         int y = (int)start.y;
 
+        Uint32 pixel = SDL_MapRGBA(format, NULL, colors[current_color].r, colors[current_color].g, colors[current_color].b, colors[current_color].a);
+
         Uint8 *dst = (Uint8 *)surface->pixels + y * surface->pitch + x * bpp;
         SDL_memcpy(dst, &pixel, bpp);
 
         start.x += x_inc;
         start.y += y_inc;
+
+        if (current_color < colors_count - 1)
+            current_color = i * y_inc;
     }
 
     if (SDL_MUSTLOCK(surface))
