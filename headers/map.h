@@ -23,11 +23,11 @@ typedef struct {
     MapPortion *portions;
     SDL_AtomicInt *threads_running;
     SDL_Surface *surface;
-    RGBA (*get_wall_type_color)(WallType wall, SIDE_HIT side_hit);
+    SDL_Color (*get_wall_type_color)(WallType wall, SIDE_HIT side_hit);
 } Map;
 
 void map_create(Map *map_to_fill, Player *player, int map_width, int map_height, WallType *map_2d, WallType wall_empty,
-                RGBA (*get_wall_type_color)(WallType wall, SIDE_HIT side_hit));
+                SDL_Color (*get_wall_type_color)(WallType wall, SIDE_HIT side_hit));
 
 void map_delete(Map *map);
 

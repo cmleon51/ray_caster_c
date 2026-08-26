@@ -58,12 +58,12 @@ WallType map_2d[MAP_SIZE][MAP_SIZE] = {
     {1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2},
 };
 
-RGBA get_wall_type_color(WallType wall, SIDE_HIT side_hit) {
-    RGBA wall_color = {};
+SDL_Color get_wall_type_color(WallType wall, SIDE_HIT side_hit) {
+    SDL_Color wall_color = {};
 
     switch (wall) {
         case WHITE_WALL:
-            wall_color = (RGBA) {
+            wall_color = (SDL_Color) {
                 .r = 0xFF,
                 .g = 0xFF,
                 .b = 0xFF,
@@ -71,7 +71,7 @@ RGBA get_wall_type_color(WallType wall, SIDE_HIT side_hit) {
             };
             break;
         case BLUE_WALL:
-            wall_color = (RGBA) {
+            wall_color = (SDL_Color) {
                 .r = 0x1E,
                 .g = 0x3A,
                 .b = 0x8A,
@@ -79,7 +79,7 @@ RGBA get_wall_type_color(WallType wall, SIDE_HIT side_hit) {
             };
             break;
         case RED_WALL:
-            wall_color = (RGBA) {
+            wall_color = (SDL_Color) {
                 .r = 0xCF,
                 .g = 0x00,
                 .b = 0x00,
@@ -99,7 +99,7 @@ RGBA get_wall_type_color(WallType wall, SIDE_HIT side_hit) {
     return wall_color;
 }
 
-void draw_sky_ground(SDL_Surface *surface, RGBA sky_color, RGBA ground_color) {
+void draw_sky_ground(SDL_Surface *surface, SDL_Color sky_color, SDL_Color ground_color) {
     long half_surface_pixels = surface->w * surface->h / 2;
 
     SDL_memset(surface->pixels, SDLUtils_map_rgba(surface, sky_color), half_surface_pixels * sizeof(Uint32));
@@ -191,7 +191,7 @@ int main(void) {
 
         SDL_ClearSurface(surface, 0x00, 0x00, 0x00, 0xFF);
 
-        draw_sky_ground(surface, (RGBA) { 0x57, 0x57, 0x57, 0xFF }, (RGBA) { 0x71, 0x71, 0x71, 0xFF });
+        draw_sky_ground(surface, (SDL_Color) { 0x57, 0x57, 0x57, 0xFF }, (SDL_Color) { 0x71, 0x71, 0x71, 0xFF });
         map_draw(&map, surface);
 
         SDL_UpdateWindowSurface(window);

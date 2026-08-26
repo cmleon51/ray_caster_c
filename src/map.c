@@ -101,7 +101,7 @@ int map_draw_portion(void *args) {
 
                 distance *= SDL_cos(DEG_TO_RADS(current_angle) - player_look_at_rads);
                 double half_wall_length = ((surface->h / distance) / surface->h) / 2.0;
-                RGBA wall_color;
+                SDL_Color wall_color;
 
                 half_wall_length = half_wall_length > 0.5 ? 0.5 : half_wall_length;
 
@@ -129,7 +129,7 @@ int map_draw_portion(void *args) {
 }
 
 void map_create(Map *map_to_fill, Player *player, int map_width, int map_height, WallType *map_2d, WallType wall_empty,
-                RGBA (*get_wall_type_color)(WallType wall, SIDE_HIT side_hit)) {
+                SDL_Color (*get_wall_type_color)(WallType wall, SIDE_HIT side_hit)) {
     int max_threads = SDL_GetNumLogicalCPUCores();
 
     MapPortion *portions = (MapPortion *)malloc(sizeof(MapPortion) * max_threads);

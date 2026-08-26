@@ -11,25 +11,18 @@
 
 #define NS_TO_S(nano_seconds) ((nano_seconds) * 1e-9f)
 
-typedef struct {
-    Uint8 r;
-    Uint8 g;
-    Uint8 b;
-    Uint8 a;
-} RGBA;
-
-Uint32 SDLUtils_map_rgba(SDL_Surface *surface, RGBA color);
+Uint32 SDLUtils_map_rgba(SDL_Surface *surface, SDL_Color color);
 
 void SDLUtils_normalized_FillSurfaceRect(SDL_Surface *surface, Vec2 norm_rect_pos,
-                                    Vec2 norm_rect_size, RGBA color);
+                                    Vec2 norm_rect_size, SDL_Color color);
 
 void SDLUtils_normalized_WriteSurfacePixel(SDL_Surface *surface, Vec2 norm_pixel_pos,
-                                      RGBA color);
+                                      SDL_Color color);
 
 void SDLUtils_normalized_FillSurfaceCircle(SDL_Surface *surface, double norm_radius,
-                                      Vec2 norm_position, RGBA color);
+                                      Vec2 norm_position, SDL_Color color);
 
 void SDLUtils_normalized_FillSurfaceLine(SDL_Surface *surface, Vec2 norm_start,
-                                    Vec2 norm_end, RGBA color);
+                                    Vec2 norm_end, SDL_Color color);
 
 #endif
