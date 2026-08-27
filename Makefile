@@ -22,7 +22,7 @@ else
     LIBS := -ldl $(shell sdl3-config --libs)
 endif
 
-LDFLAGS := $(LIBS)
+LDFLAGS := $(LIBS) -lm
 LDLIBS :=
 
 SRCS := $(shell find $(SRCDIR) -name "*.c")
