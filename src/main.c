@@ -134,10 +134,6 @@ WallType map_2d[MAP_SIZE][MAP_SIZE] = {
     {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4},
 };
 
-typedef enum {
-    RENDER_MAP
-} THREAD_WORK;
-
 typedef struct {
     int thread_nr;
     int max_threads;
@@ -148,7 +144,6 @@ typedef struct {
     SDL_AtomicInt *running;
     SDL_Semaphore *start;
     SDL_Semaphore *finished;
-    THREAD_WORK *work;
 } ThreadData;
 
 int draw_map_portion(void *args) {
@@ -157,41 +152,37 @@ int draw_map_portion(void *args) {
     while (SDL_GetAtomicInt(data->running)) {
         SDL_WaitSemaphore(data->start);
 
-        switch (*data->work) {
-            case RENDER_MAP:
-                int width_threads_ratio = (*data->surface)->w / data->max_threads;
-                int column_start = width_threads_ratio * data->thread_nr;
-                int column_end = width_threads_ratio + column_start;
+        int width_threads_ratio = (*data->surface)->w / data->max_threads;
+        int column_start = width_threads_ratio * data->thread_nr;
+        int column_end = width_threads_ratio + column_start;
 
-                if (data->thread_nr == data->max_threads - 1) {
-                    column_end = (*data->surface)->w;
+        if (data->thread_nr == data->max_threads - 1) {
+            column_end = (*data->surface)->w;
+        }
+
+        map_raycast(data->map, *data->rays_arr, data->player, column_start, column_end, (*data->surface)->w, (*data->surface)->h);
+
+        for (int i = column_start; i < column_end; i++) {
+            RayHit *curr_ray = &(*data->rays_arr)[i];
+            SDL_Color wall_colors[curr_ray->wall_height];
+            Texture *current_texture = &textures[curr_ray->wall_hit - 1];
+
+            double texture_wall_height_ratio = (double)current_texture->height / curr_ray->full_wall_height;
+            int texture_x = curr_ray->wall_column_hit * current_texture->width;
+
+            for (int y = 0; y < curr_ray->wall_height; y++) {
+                int texture_y = (y + curr_ray->wall_height_clip) * texture_wall_height_ratio;
+
+                wall_colors[y] = texture_get_pixel(current_texture, texture_x, texture_y);
+
+                if (curr_ray->side_hit == Y_SIDE) {
+                    wall_colors[y].r = wall_colors[y].r >> 1;
+                    wall_colors[y].g = wall_colors[y].g >> 1;
+                    wall_colors[y].b = wall_colors[y].b >> 1;
                 }
+            }
 
-                map_raycast(data->map, *data->rays_arr, data->player, column_start, column_end, (*data->surface)->w, (*data->surface)->h);
-
-                for (int i = column_start; i < column_end; i++) {
-                    RayHit *curr_ray = &(*data->rays_arr)[i];
-                    SDL_Color wall_colors[curr_ray->wall_height];
-                    Texture *current_texture = &textures[curr_ray->wall_hit - 1];
-
-                    double texture_wall_height_ratio = (double)current_texture->height / curr_ray->full_wall_height;
-                    int texture_x = curr_ray->wall_column_hit * current_texture->width;
-
-                    for (int y = 0; y < curr_ray->wall_height; y++) {
-                        int texture_y = (y + curr_ray->wall_height_clip) * texture_wall_height_ratio;
-
-                        wall_colors[y] = texture_get_pixel(current_texture, texture_x, texture_y);
-
-                        if (curr_ray->side_hit == Y_SIDE) {
-                            wall_colors[y].r = wall_colors[y].r >> 1;
-                            wall_colors[y].g = wall_colors[y].g >> 1;
-                            wall_colors[y].b = wall_colors[y].b >> 1;
-                        }
-                    }
-
-                    SDLUtils_normalized_FillSurfaceLine(*data->surface, curr_ray->wall_start, curr_ray->wall_end, wall_colors, curr_ray->wall_height);
-                }
-            break;
+            SDLUtils_normalized_FillSurfaceLine(*data->surface, curr_ray->wall_start, curr_ray->wall_end, wall_colors, curr_ray->wall_height);
         }
 
         SDL_SignalSemaphore(data->finished);
@@ -253,7 +244,6 @@ int main(void) {
     ThreadData thread_data[max_threads];
     SDL_Thread *threads[max_threads];
     SDL_AtomicInt *running = (SDL_AtomicInt *)malloc(sizeof(SDL_AtomicInt));
-    THREAD_WORK threads_work = RENDER_MAP;
 
     SDL_SetAtomicInt(running, 1);
 
@@ -271,7 +261,6 @@ int main(void) {
             .running = running,
             .start = start_semaphore,
             .finished = finished_semaphore,
-            .work = &threads_work
         };
 
         threads[i] = SDL_CreateThread(draw_map_portion, "thread", &thread_data[i]);
@@ -349,8 +338,6 @@ int main(void) {
         SDL_ClearSurface(surface, 0x00, 0x00, 0x00, 0xFF);
 
         draw_sky_ground(surface, (SDL_Color) { 0x57, 0x57, 0x57, 0xFF }, (SDL_Color) { 0x71, 0x71, 0x71, 0xFF });
-
-        threads_work = RENDER_MAP;
 
         for (int i = 0; i < max_threads; i++) {
             SDL_SignalSemaphore(thread_data[i].start);

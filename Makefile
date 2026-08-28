@@ -1,5 +1,5 @@
 CC := gcc
-CFLAGS ?= -Wall -Wextra -I${HDRDIR}
+CFLAGS ?= -std=c23 -Wall -Wextra -I${HDRDIR}
 
 TARGET := ray_caster
 SRCDIR := src
