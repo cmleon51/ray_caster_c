@@ -76,7 +76,7 @@ void SDLUtils_normalized_FillSurfaceLine(SDL_Surface *surface, Vec2 norm_start,
     if (SDL_MUSTLOCK(surface))
         SDL_LockSurface(surface);
 
-    for (double i = 0; i <= steps; i++) {
+    for (int i = 0; i <= steps; i++) {
         int x = (int)start.x;
         int y = (int)start.y;
 
