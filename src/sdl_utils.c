@@ -76,11 +76,19 @@ void SDLUtils_normalized_FillSurfaceLine(SDL_Surface *surface, Vec2 norm_start,
     if (SDL_MUSTLOCK(surface))
         SDL_LockSurface(surface);
 
+    SDL_Color prev_color = colors[0];
+    Uint32 pixel = SDL_MapRGBA(format, NULL, prev_color.r, prev_color.g, prev_color.b, prev_color.a);
+
     for (int i = 0; i <= steps; i++) {
         int x = (int)start.x;
         int y = (int)start.y;
 
-        Uint32 pixel = SDL_MapRGBA(format, NULL, colors[current_color].r, colors[current_color].g, colors[current_color].b, colors[current_color].a);
+        SDL_Color color = colors[current_color];
+        if (color.r != prev_color.r || color.g != prev_color.g ||
+            color.b != prev_color.b || color.a != prev_color.a) {
+            pixel = SDL_MapRGBA(format, NULL, color.r, color.g, color.b, color.a);
+            prev_color = color;
+        }
 
         Uint8 *dst = (Uint8 *)surface->pixels + y * surface->pitch + x * bpp;
         SDL_memcpy(dst, &pixel, bpp);

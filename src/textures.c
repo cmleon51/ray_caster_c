@@ -36,9 +36,7 @@ int texture_load(Texture *texture, const char *texture_path, const char **failur
     return 0;
 }
 
-SDL_Color texture_get_pixel(Texture *texture, int x, int y) {
-    return texture->pixels[y * texture->width + x];
-}
+extern SDL_Color texture_get_pixel(Texture *texture, int x, int y);
 
 void texture_destroy(Texture *texture) {
     free(texture->pixels);

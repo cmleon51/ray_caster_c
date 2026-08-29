@@ -11,7 +11,9 @@ typedef struct {
 
 int texture_load(Texture *texture, const char *texture_path, const char **failure);
 
-SDL_Color texture_get_pixel(Texture *texture, int x, int y);
+inline SDL_Color texture_get_pixel(Texture *texture, int x, int y) {
+    return texture->pixels[y * texture->width + x];
+}
 
 void texture_destroy(Texture *texture);
 
