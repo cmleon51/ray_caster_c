@@ -17,6 +17,7 @@ typedef struct {
     int full_wall_height;
     int wall_height_clip;
     double wall_column_hit;
+    double ray_angle;
     WallType wall_hit;
     SIDE_HIT side_hit;
     Vec2 wall_start;

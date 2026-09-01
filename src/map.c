@@ -111,6 +111,7 @@ void map_raycast(Map *map, RayHit *rays_arr, Player *player, int start_column, i
                 .side_hit = side_hit,
                 .wall_start = wall_start,
                 .wall_end = wall_end,
+                .ray_angle = current_angle
             };
         }
 

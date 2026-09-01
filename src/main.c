@@ -183,19 +183,89 @@ int draw_map_portion(void *args) {
             }
 
             SDLUtils_normalized_FillSurfaceLine(*data->surface, curr_ray->wall_start, curr_ray->wall_end, wall_colors, curr_ray->wall_height);
+
+            /*
+             *
+             * CEILING AND FLOOR CASTING
+             *
+             * */
+
+            int wall_column_end_pos = ((*data->surface)->h / 2) + (curr_ray->wall_height / 2);
+
+            if (wall_column_end_pos < (*data->surface)->h) {
+                double direction_cos = SDL_cos(DEG_TO_RADS(curr_ray->ray_angle));
+                double direction_sin = SDL_sin(DEG_TO_RADS(curr_ray->ray_angle));
+                double direction_correction = SDL_cos(DEG_TO_RADS(curr_ray->ray_angle) - DEG_TO_RADS(data->player->look_at));
+
+                Texture *ceiling_floor_texture = &textures[TEXTURE_CHARCOAL_BRICK - 1];
+
+                int floor_colors_index = 0;
+                SDL_Color floor_colors[(*data->surface)->h - wall_column_end_pos] = {};
+
+                int wall_column_start_pos = ((*data->surface)->h / 2) - (curr_ray->wall_height / 2);
+                int ceiling_colors_index = 0;
+                SDL_Color ceiling_colors[wall_column_start_pos] = {};
+
+                Vec2 player_pos_in_map = vec2_map_norm_coord(data->player->position, data->map->map_width, data->map->map_height);
+
+                for (int y = wall_column_end_pos; y < (*data->surface)->h; y++) {
+                    double floor_distance = (double)(*data->surface)->h /
+                        (2 * y - (*data->surface)->h) /
+                        direction_correction;
+
+                    double floor_tile_x = floor_distance * direction_cos + player_pos_in_map.x;
+                    double floor_tile_y = floor_distance * direction_sin + player_pos_in_map.y;
+
+                    int floor_texture_x = (int)(floor_tile_x * ceiling_floor_texture->width) %
+                        ceiling_floor_texture->width;
+                    int floor_texture_y = (int)(floor_tile_y * ceiling_floor_texture->height) %
+                        ceiling_floor_texture->height;
+
+                    floor_colors[floor_colors_index++] = texture_get_pixel(ceiling_floor_texture, floor_texture_x, floor_texture_y);
+
+                    double ceiling_distance = (double)(*data->surface)->h /
+                        (2 * ((y - (*data->surface)->h + wall_column_start_pos)) -
+                        (*data->surface)->h) /
+                        direction_correction;
+
+                    double ceiling_tile_x = ceiling_distance * direction_cos - player_pos_in_map.x;
+                    double ceiling_tile_y = ceiling_distance * direction_sin - player_pos_in_map.y;
+
+                    int ceiling_texture_x = (int)(ceiling_tile_x * ceiling_floor_texture->width * -1) %
+                        ceiling_floor_texture->width;
+                    int ceiling_texture_y = (int)(ceiling_tile_y * ceiling_floor_texture->height * -1) %
+                        ceiling_floor_texture->height;
+
+                    ceiling_colors[ceiling_colors_index++] = texture_get_pixel(ceiling_floor_texture, ceiling_texture_x, ceiling_texture_y);
+                }
+
+                Vec2 floor_start = {
+                    .x = (double)i / (*data->surface)->w,
+                    .y = (double)wall_column_end_pos / (*data->surface)->h,
+                };
+                Vec2 floor_end = {
+                    .x = (double)i / (*data->surface)->w,
+                    .y = 1.0,
+                };
+
+                Vec2 ceiling_start = {
+                    .x = (double)i / (*data->surface)->w,
+                    .y = 0.0,
+                };
+                Vec2 ceiling_end = {
+                    .x = (double)i / (*data->surface)->w,
+                    .y = (double)wall_column_start_pos / (*data->surface)->h,
+                };
+
+                SDLUtils_normalized_FillSurfaceLine(*data->surface, ceiling_start, ceiling_end, ceiling_colors, ceiling_colors_index);
+                SDLUtils_normalized_FillSurfaceLine(*data->surface, floor_start, floor_end, floor_colors, floor_colors_index);
+            }
         }
 
         SDL_SignalSemaphore(data->finished);
     }
 
     return 0;
-}
-
-void draw_sky_ground(SDL_Surface *surface, SDL_Color sky_color, SDL_Color ground_color) {
-    long half_surface_pixels = surface->w * surface->h / 2;
-
-    SDL_memset(surface->pixels, SDLUtils_map_rgba(surface, sky_color), half_surface_pixels * sizeof(Uint32));
-    SDL_memset(surface->pixels + (half_surface_pixels * sizeof(Uint32)), SDLUtils_map_rgba(surface, ground_color), (half_surface_pixels - 1) * sizeof(Uint32));
 }
 
 int main(void) {
@@ -336,8 +406,6 @@ int main(void) {
 
 
         SDL_ClearSurface(surface, 0x00, 0x00, 0x00, 0xFF);
-
-        draw_sky_ground(surface, (SDL_Color) { 0x57, 0x57, 0x57, 0xFF }, (SDL_Color) { 0x71, 0x71, 0x71, 0xFF });
 
         for (int i = 0; i < max_threads; i++) {
             SDL_SignalSemaphore(thread_data[i].start);
