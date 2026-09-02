@@ -313,9 +313,9 @@ int main(void) {
     int max_threads = SDL_GetNumLogicalCPUCores();
     ThreadData thread_data[max_threads];
     SDL_Thread *threads[max_threads];
-    SDL_AtomicInt *running = (SDL_AtomicInt *)malloc(sizeof(SDL_AtomicInt));
+    SDL_AtomicInt running;
 
-    SDL_SetAtomicInt(running, 1);
+    SDL_SetAtomicInt(&running, 1);
 
     for (int i = 0; i < max_threads; i++) {
         SDL_Semaphore *start_semaphore = SDL_CreateSemaphore(0);
@@ -328,7 +328,7 @@ int main(void) {
             .rays_arr = &rays,
             .map = &map,
             .surface = &surface,
-            .running = running,
+            .running = &running,
             .start = start_semaphore,
             .finished = finished_semaphore,
         };
@@ -420,7 +420,7 @@ int main(void) {
         SDL_GetCurrentTime(&time_end_loop);
     }
 
-    SDL_SetAtomicInt(running, 0);
+    SDL_SetAtomicInt(&running, 0);
 
     for (int i = 0; i < max_threads; i++) {
         SDL_SignalSemaphore(thread_data[i].start);
@@ -433,7 +433,6 @@ int main(void) {
         SDL_DestroySemaphore(thread_data[i].finished);
     }
 
-    free(running);
     free(rays);
     free_textures();
 
