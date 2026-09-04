@@ -4,6 +4,7 @@
 #include <linear_algebra/vec2.h>
 #include <map.h>
 #include <player.h>
+#include <camera.h>
 #include <sdl_utils.h>
 #include <textures.h>
 
@@ -120,7 +121,7 @@ WallType map_2d[MAP_SIZE][MAP_SIZE] = {
 typedef struct {
     int thread_nr;
     int max_threads;
-    Player *player;
+    Camera *camera;
     RayHit **rays_arr;
     Map *map;
     SDL_Surface **surface;
@@ -151,7 +152,7 @@ int draw_map_portion(void *args) {
         if (data->thread_nr == data->max_threads - 1)
             column_end = surface->w;
 
-        map_raycast(data->map, *data->rays_arr, data->player, column_start, column_end, surface->w, surface->h);
+        map_raycast(data->map, *data->rays_arr, data->camera, column_start, column_end, surface->w, surface->h);
 
         for (int x = column_start; x < column_end; x++) {
             RayHit *curr_ray = &(*data->rays_arr)[x];
@@ -174,7 +175,7 @@ int draw_map_portion(void *args) {
                 Texture *floor_texture = &textures[TEXTURE_CHARCOAL_BRICK - 1];
                 Texture *ceiling_texture = &textures[TEXTURE_CHARCOAL_BRICK - 1];
 
-                Vec2 player_pos = vec2_map_norm_coord(data->player->position, data->map->width, data->map->height);
+                Vec2 player_pos = vec2_map_norm_coord(data->camera->position, data->map->width, data->map->height);
 
                 for (int y = floor_start; y < surface->h; y++) {
                     double row_distance = horizon / (y - horizon);
@@ -269,11 +270,15 @@ int main(void) {
 
     SDL_Surface *surface = SDL_GetWindowSurface(window);
 
-    Player player = {.position = {.x = 0.5, .y = 0.5},
-                     .look_at = 0.0,
-                     .fov = 90.0,
-                     .movement_speed = 0.2,
-                     .rotation_speed = 200.0};
+    Player player = {
+        .camera = {
+            {.x = 0.5, .y = 0.5},
+            .look_at = 0.0,
+            .fov = 90.0,
+        },
+        .movement_speed = 0.2,
+        .rotation_speed = 200.0
+    };
     double player_wall_collision_distance = 0.01;
 
     Map map = {
@@ -298,7 +303,7 @@ int main(void) {
         thread_data[i] = (ThreadData) {
             .thread_nr = i,
             .max_threads = max_threads,
-            .player = &player,
+            .camera = &player.camera,
             .rays_arr = &rays,
             .map = &map,
             .surface = &surface,
@@ -349,10 +354,10 @@ int main(void) {
 
         const bool *key_states = SDL_GetKeyboardState(NULL);
 
-        Vec2 player_look_at = vec2_from_angle(player.look_at);
+        Vec2 player_look_at = vec2_from_angle(player.camera.look_at);
         vec2_normalize(&player_look_at);
         vec2_scale(&player_look_at, player_wall_collision_distance);
-        vec2_add_vec2(&player_look_at, player.position);
+        vec2_add_vec2(&player_look_at, player.camera.position);
 
         Vec2 player_look_at_in_map = vec2_map_norm_coord(player_look_at, map.width, map.height);
 
@@ -361,10 +366,10 @@ int main(void) {
             player_move(&player, FORWARD, delta_time);
         }
 
-        Vec2 inverted_player_look_at = vec2_from_angle(player.look_at - 180);
+        Vec2 inverted_player_look_at = vec2_from_angle(player.camera.look_at - 180);
         vec2_normalize(&inverted_player_look_at);
         vec2_scale(&inverted_player_look_at, player_wall_collision_distance);
-        vec2_add_vec2(&inverted_player_look_at, player.position);
+        vec2_add_vec2(&inverted_player_look_at, player.camera.position);
 
         Vec2 inverted_player_look_at_in_map = vec2_map_norm_coord(inverted_player_look_at, map.width, map.height);
 

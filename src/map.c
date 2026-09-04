@@ -4,7 +4,7 @@
 
 extern WallType map_check_wall(Map *map, int x, int y);
 
-void map_raycast(Map *map, RayHit *rays_arr, Player *player, int start_column, int end_column, int column_max_width, int column_max_height) {
+void map_raycast(Map *map, RayHit *rays_arr, Camera *player, int start_column, int end_column, int column_max_width, int column_max_height) {
     double player_look_at_rads = DEG_TO_RADS(player->look_at);
 
     double current_angle = player->look_at - (player->fov / 2.0);
