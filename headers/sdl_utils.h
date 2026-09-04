@@ -1,13 +1,10 @@
 #ifndef SDL_UTILS_H
 #define SDL_UTILS_H
 
-#include <SDL3/SDL_events.h>
-#include <SDL3/SDL_log.h>
+#include <SDL3/SDL_pixels.h>
 #include <SDL3/SDL_stdinc.h>
 #include <SDL3/SDL_surface.h>
-#include <SDL3/SDL_video.h>
 #include <linear_algebra/vec2.h>
-#include <player.h>
 
 #define NS_TO_S(nano_seconds) ((nano_seconds) * 1e-9f)
 

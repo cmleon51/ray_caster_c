@@ -1,5 +1,4 @@
-#include "vec2.h"
-#include <SDL3/SDL_surface.h>
+#include <linear_algebra/vec2.h>
 #include <sdl_utils.h>
 
 Uint32 SDLUtils_map_rgba(SDL_Surface *surface, SDL_Color color) {

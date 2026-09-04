@@ -1,11 +1,6 @@
-#include "vec2.h"
+#include <linear_algebra/vec2.h>
 #include <map.h>
-
-#include <SDL3/SDL_cpuinfo.h>
-#include <SDL3/SDL_mutex.h>
-#include <SDL3/SDL_thread.h>
 #include <player.h>
-#include <sdl_utils.h>
 
 extern WallType map_check_wall(Map *map, int x, int y);
 

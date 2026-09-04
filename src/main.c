@@ -1,27 +1,10 @@
-#include <SDL3/SDL_cpuinfo.h>
-#include <SDL3/SDL_mutex.h>
-#include <SDL3/SDL_thread.h>
-#include <linear_algebra/vec2.h>
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_error.h>
-#include <SDL3/SDL_events.h>
-#include <SDL3/SDL_init.h>
-#include <SDL3/SDL_keycode.h>
-#include <SDL3/SDL_log.h>
 #include <SDL3/SDL_main.h>
-#include <SDL3/SDL_oldnames.h>
-#include <SDL3/SDL_pixels.h>
-#include <SDL3/SDL_scancode.h>
-#include <SDL3/SDL_stdinc.h>
-#include <SDL3/SDL_surface.h>
-#include <SDL3/SDL_time.h>
-#include <SDL3/SDL_timer.h>
-#include <SDL3/SDL_video.h>
+#include <stdlib.h>
+#include <linear_algebra/vec2.h>
+#include <map.h>
 #include <player.h>
 #include <sdl_utils.h>
-#include <stdlib.h>
-#include <map.h>
-#include <stb_image.h>
 #include <textures.h>
 
 #define MAP_SIZE 50

@@ -2,7 +2,6 @@
 #define VEC2_H
 
 #include <SDL3/SDL_stdinc.h>
-#include <SDL3/SDL_surface.h>
 
 #define DEG_TO_RADS(deg_angle) (deg_angle * SDL_PI_D / 180.0)
 

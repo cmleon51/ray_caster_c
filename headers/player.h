@@ -2,11 +2,6 @@
 #define PLAYER_H
 
 #include <linear_algebra/vec2.h>
-#include <SDL3/SDL_log.h>
-#include <SDL3/SDL_stdinc.h>
-#include <SDL3/SDL_surface.h>
-#include <SDL3/SDL_init.h>
-#include <stdlib.h>
 
 typedef struct {
     Vec2 position;

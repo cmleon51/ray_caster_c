@@ -1,3 +1,7 @@
+#include <SDL3/SDL_init.h>
+#include <SDL3/SDL_log.h>
+#include <stdlib.h>
+
 #include <player.h>
 
 void player_move(Player *player, Direction direction, double delta_time) {

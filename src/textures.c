@@ -1,7 +1,8 @@
+#include <stdlib.h>
 #include <textures.h>
 
 #define STB_IMAGE_IMPLEMENTATION
-    #include <stb_image.h>
+#include <stb_image.h>
 
 int texture_load(Texture *texture, const char *texture_path, const char **failure) {
     int channels;

@@ -1,9 +1,8 @@
 #ifndef MAP_H
 #define MAP_H
 
-#include <SDL3/SDL_thread.h>
+#include <linear_algebra/vec2.h>
 #include <player.h>
-#include <sdl_utils.h>
 
 typedef int WallType;
 
