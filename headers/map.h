@@ -14,25 +14,28 @@ typedef enum {
 
 typedef struct {
     int wall_height;
-    int full_wall_height;
-    int wall_height_clip;
+    int wall_top;
+    int wall_bottom;
+    double wall_texture_v;
+    double wall_texture_v_step;
     double wall_column_hit;
-    double ray_angle;
     WallType wall_hit;
     SIDE_HIT side_hit;
-    Vec2 wall_start;
-    Vec2 wall_end;
+
+    Vec2 floor_dir;
 } RayHit;
 
 typedef struct {
-    int map_width;
-    int map_height;
+    int width;
+    int height;
     WallType *map_2d;
     WallType wall_empty;
 } Map;
 
 void map_raycast(Map *map, RayHit *rays_arr, Player *player, int start_column, int end_column, int column_max_width, int column_max_height);
 
-WallType map_check_wall(Map *map, int x, int y);
+inline WallType map_check_wall(Map *map, int x, int y) {
+    return *(map->map_2d + y * map->width + x);
+}
 
 #endif //MAP_H

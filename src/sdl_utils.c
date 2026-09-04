@@ -97,7 +97,7 @@ void SDLUtils_normalized_FillSurfaceLine(SDL_Surface *surface, Vec2 norm_start,
         start.y += y_inc;
 
         if (current_color < colors_count - 1)
-            current_color = i * y_inc;
+            current_color++;
     }
 
     if (SDL_MUSTLOCK(surface))

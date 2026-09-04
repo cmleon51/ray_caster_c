@@ -7,9 +7,7 @@
 #include <player.h>
 #include <sdl_utils.h>
 
-WallType map_check_wall(Map *map, int x, int y) {
-    return *(map->map_2d + y * map->map_width + x);
-}
+extern WallType map_check_wall(Map *map, int x, int y);
 
 void map_raycast(Map *map, RayHit *rays_arr, Player *player, int start_column, int end_column, int column_max_width, int column_max_height) {
     double player_look_at_rads = DEG_TO_RADS(player->look_at);
@@ -20,7 +18,7 @@ void map_raycast(Map *map, RayHit *rays_arr, Player *player, int start_column, i
     current_angle += (display_to_fov_ratio * start_column);
 
     for (int x = start_column; x < end_column; x++) {
-        Vec2 ray_start = vec2_map_norm_coord(player->position, map->map_width, map->map_height);
+        Vec2 ray_start = vec2_map_norm_coord(player->position, map->width, map->height);
         Vec2 ray_dir = vec2_from_angle(current_angle);
 
         vec2_normalize(&ray_dir);
@@ -58,7 +56,7 @@ void map_raycast(Map *map, RayHit *rays_arr, Player *player, int start_column, i
         int side_hit = 0;
         WallType wall_hit = map->wall_empty;
 
-        while (wall_hit == map->wall_empty && (distance_x < map->map_width || distance_y < map->map_height)) {
+        while (wall_hit == map->wall_empty && (distance_x < map->width || distance_y < map->height)) {
             if (ray_length_1d.x < ray_length_1d.y) {
                 map_check.x += step.x;
                 distance_x = ray_length_1d.x;
@@ -77,12 +75,14 @@ void map_raycast(Map *map, RayHit *rays_arr, Player *player, int start_column, i
         if (wall_hit != map->wall_empty) {
             double distance = side_hit == Y_SIDE ? distance_y : distance_x;
 
-            double correct_perspective_distance = distance * SDL_cos(DEG_TO_RADS(current_angle) - player_look_at_rads);
+            double perspective_correction = SDL_cos(DEG_TO_RADS(current_angle) - player_look_at_rads);
+            double correct_perspective_distance = distance * perspective_correction;
             int full_wall_height = (int)(column_max_height / correct_perspective_distance);
             int wall_height = full_wall_height > column_max_height ? column_max_height : full_wall_height;
             int wall_height_clip = (full_wall_height - wall_height) / 2;
 
-            double half_wall_length = ((double)wall_height / column_max_height) / 2.0;
+            int wall_top = column_max_height / 2 - wall_height / 2;
+            int wall_bottom = column_max_height / 2 + wall_height / 2;
 
             double wall_column_hit = 0.0;
 
@@ -93,25 +93,19 @@ void map_raycast(Map *map, RayHit *rays_arr, Player *player, int start_column, i
 
             wall_column_hit -= SDL_floor(wall_column_hit);
 
-            Vec2 wall_start = {
-                .x = (double)x / column_max_width,
-                .y = 0.5 - half_wall_length,
-            };
-            Vec2 wall_end = {
-                .x = (double)x / column_max_width,
-                .y = 0.5 + half_wall_length,
-            };
-
             rays_arr[x] = (RayHit) {
                 .wall_height = wall_height,
-                .full_wall_height = full_wall_height,
-                .wall_height_clip = wall_height_clip,
+                .wall_top = wall_top,
+                .wall_bottom = wall_bottom,
+                .wall_texture_v = (double)wall_height_clip / full_wall_height,
+                .wall_texture_v_step = 1.0 / full_wall_height,
                 .wall_column_hit = wall_column_hit,
                 .wall_hit = wall_hit,
                 .side_hit = side_hit,
-                .wall_start = wall_start,
-                .wall_end = wall_end,
-                .ray_angle = current_angle
+                .floor_dir = {
+                    .x = ray_dir.x / perspective_correction,
+                    .y = ray_dir.y / perspective_correction,
+                },
             };
         }
 

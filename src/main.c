@@ -146,43 +146,32 @@ typedef struct {
     SDL_Semaphore *finished;
 } ThreadData;
 
+Vec2 surface_norm_point(SDL_Surface *surface, int x, int y) {
+    return (Vec2) {
+        .x = (double)x / surface->w,
+        .y = (double)y / surface->h,
+    };
+}
+
 int draw_map_portion(void *args) {
     ThreadData *data = (ThreadData *)args;
 
     while (SDL_GetAtomicInt(data->running)) {
         SDL_WaitSemaphore(data->start);
 
-        int width_threads_ratio = (*data->surface)->w / data->max_threads;
+        SDL_Surface *surface = *data->surface;
+
+        int width_threads_ratio = surface->w / data->max_threads;
         int column_start = width_threads_ratio * data->thread_nr;
         int column_end = width_threads_ratio + column_start;
 
-        if (data->thread_nr == data->max_threads - 1) {
-            column_end = (*data->surface)->w;
-        }
+        if (data->thread_nr == data->max_threads - 1)
+            column_end = surface->w;
 
-        map_raycast(data->map, *data->rays_arr, data->player, column_start, column_end, (*data->surface)->w, (*data->surface)->h);
+        map_raycast(data->map, *data->rays_arr, data->player, column_start, column_end, surface->w, surface->h);
 
-        for (int i = column_start; i < column_end; i++) {
-            RayHit *curr_ray = &(*data->rays_arr)[i];
-            SDL_Color wall_colors[curr_ray->wall_height];
-            Texture *current_texture = &textures[curr_ray->wall_hit - 1];
-
-            double texture_wall_height_ratio = (double)current_texture->height / curr_ray->full_wall_height;
-            int texture_x = curr_ray->wall_column_hit * current_texture->width;
-
-            for (int y = 0; y < curr_ray->wall_height; y++) {
-                int texture_y = (y + curr_ray->wall_height_clip) * texture_wall_height_ratio;
-
-                wall_colors[y] = texture_get_pixel(current_texture, texture_x, texture_y);
-
-                if (curr_ray->side_hit == Y_SIDE) {
-                    wall_colors[y].r = wall_colors[y].r >> 1;
-                    wall_colors[y].g = wall_colors[y].g >> 1;
-                    wall_colors[y].b = wall_colors[y].b >> 1;
-                }
-            }
-
-            SDLUtils_normalized_FillSurfaceLine(*data->surface, curr_ray->wall_start, curr_ray->wall_end, wall_colors, curr_ray->wall_height);
+        for (int x = column_start; x < column_end; x++) {
+            RayHit *curr_ray = &(*data->rays_arr)[x];
 
             /*
              *
@@ -190,75 +179,77 @@ int draw_map_portion(void *args) {
              *
              * */
 
-            int wall_column_end_pos = ((*data->surface)->h / 2) + (curr_ray->wall_height / 2);
+            double horizon = (double)surface->h / 2;
 
-            if (wall_column_end_pos < (*data->surface)->h) {
-                double direction_cos = SDL_cos(DEG_TO_RADS(curr_ray->ray_angle));
-                double direction_sin = SDL_sin(DEG_TO_RADS(curr_ray->ray_angle));
-                double direction_correction = SDL_cos(DEG_TO_RADS(curr_ray->ray_angle) - DEG_TO_RADS(data->player->look_at));
+            int floor_start = curr_ray->wall_bottom > horizon ? curr_ray->wall_bottom : horizon + 1;
+            int span_count = surface->h - floor_start;
 
-                Texture *ceiling_floor_texture = &textures[TEXTURE_CHARCOAL_BRICK - 1];
+            if (span_count > 0) {
+                SDL_Color floor_colors[span_count];
+                SDL_Color ceiling_colors[span_count];
 
-                int floor_colors_index = 0;
-                SDL_Color floor_colors[(*data->surface)->h - wall_column_end_pos] = {};
+                Texture *floor_texture = &textures[TEXTURE_CHARCOAL_BRICK - 1];
+                Texture *ceiling_texture = &textures[TEXTURE_CHARCOAL_BRICK - 1];
 
-                int wall_column_start_pos = ((*data->surface)->h / 2) - (curr_ray->wall_height / 2);
-                int ceiling_colors_index = 0;
-                SDL_Color ceiling_colors[wall_column_start_pos] = {};
+                Vec2 player_pos = vec2_map_norm_coord(data->player->position, data->map->width, data->map->height);
 
-                Vec2 player_pos_in_map = vec2_map_norm_coord(data->player->position, data->map->map_width, data->map->map_height);
+                for (int y = floor_start; y < surface->h; y++) {
+                    double row_distance = horizon / (y - horizon);
 
-                for (int y = wall_column_end_pos; y < (*data->surface)->h; y++) {
-                    double floor_distance = (double)(*data->surface)->h /
-                        (2 * y - (*data->surface)->h) /
-                        direction_correction;
+                    double floor_x = player_pos.x + row_distance * curr_ray->floor_dir.x;
+                    double floor_y = player_pos.y + row_distance * curr_ray->floor_dir.y;
 
-                    double floor_tile_x = floor_distance * direction_cos + player_pos_in_map.x;
-                    double floor_tile_y = floor_distance * direction_sin + player_pos_in_map.y;
+                    double tile_x = floor_x - SDL_floor(floor_x);
+                    double tile_y = floor_y - SDL_floor(floor_y);
 
-                    int floor_texture_x = (int)(floor_tile_x * ceiling_floor_texture->width) %
-                        ceiling_floor_texture->width;
-                    int floor_texture_y = (int)(floor_tile_y * ceiling_floor_texture->height) %
-                        ceiling_floor_texture->height;
+                    floor_colors[y - floor_start] = texture_get_pixel(floor_texture,
+                        tile_x * floor_texture->width, tile_y * floor_texture->height);
 
-                    floor_colors[floor_colors_index++] = texture_get_pixel(ceiling_floor_texture, floor_texture_x, floor_texture_y);
-
-                    double ceiling_distance = (double)(*data->surface)->h /
-                        (2 * ((y - (*data->surface)->h + wall_column_start_pos)) -
-                        (*data->surface)->h) /
-                        direction_correction;
-
-                    double ceiling_tile_x = ceiling_distance * direction_cos - player_pos_in_map.x;
-                    double ceiling_tile_y = ceiling_distance * direction_sin - player_pos_in_map.y;
-
-                    int ceiling_texture_x = (int)(ceiling_tile_x * ceiling_floor_texture->width * -1) %
-                        ceiling_floor_texture->width;
-                    int ceiling_texture_y = (int)(ceiling_tile_y * ceiling_floor_texture->height * -1) %
-                        ceiling_floor_texture->height;
-
-                    ceiling_colors[ceiling_colors_index++] = texture_get_pixel(ceiling_floor_texture, ceiling_texture_x, ceiling_texture_y);
+                    ceiling_colors[surface->h - 1 - y] = texture_get_pixel(ceiling_texture,
+                        tile_x * ceiling_texture->width, tile_y * ceiling_texture->height);
                 }
 
-                Vec2 floor_start = {
-                    .x = (double)i / (*data->surface)->w,
-                    .y = (double)wall_column_end_pos / (*data->surface)->h,
-                };
-                Vec2 floor_end = {
-                    .x = (double)i / (*data->surface)->w,
-                    .y = 1.0,
-                };
+                SDLUtils_normalized_FillSurfaceLine(surface,
+                    surface_norm_point(surface, x, 0),
+                    surface_norm_point(surface, x, span_count - 1),
+                    ceiling_colors, span_count);
 
-                Vec2 ceiling_start = {
-                    .x = (double)i / (*data->surface)->w,
-                    .y = 0.0,
-                };
-                Vec2 ceiling_end = {
-                    .x = (double)i / (*data->surface)->w,
-                    .y = (double)wall_column_start_pos / (*data->surface)->h,
-                };
+                SDLUtils_normalized_FillSurfaceLine(surface,
+                    surface_norm_point(surface, x, floor_start),
+                    surface_norm_point(surface, x, surface->h - 1),
+                    floor_colors, span_count);
+            }
 
-                SDLUtils_normalized_FillSurfaceLine(*data->surface, ceiling_start, ceiling_end, ceiling_colors, ceiling_colors_index);
-                SDLUtils_normalized_FillSurfaceLine(*data->surface, floor_start, floor_end, floor_colors, floor_colors_index);
+            /*
+             *
+             * WALL DRAWING
+             *
+             * */
+
+            if (curr_ray->wall_height > 0) {
+                SDL_Color wall_colors[curr_ray->wall_height];
+                Texture *current_texture = &textures[curr_ray->wall_hit - 1];
+
+                int texture_x = curr_ray->wall_column_hit * current_texture->width;
+                double texture_v = curr_ray->wall_texture_v;
+
+                for (int y = 0; y < curr_ray->wall_height; y++) {
+                    int texture_y = (int)(texture_v * current_texture->height);
+                    texture_v += curr_ray->wall_texture_v_step;
+
+                    wall_colors[y] = texture_get_pixel(current_texture, texture_x, texture_y);
+
+                    if (curr_ray->side_hit == Y_SIDE) {
+                        wall_colors[y].r = wall_colors[y].r >> 1;
+                        wall_colors[y].g = wall_colors[y].g >> 1;
+                        wall_colors[y].b = wall_colors[y].b >> 1;
+                    }
+                }
+
+                SDLUtils_normalized_FillSurfaceLine(surface,
+                    surface_norm_point(surface, x, curr_ray->wall_top),
+                    surface_norm_point(surface, x, curr_ray->wall_bottom),
+                    wall_colors, curr_ray->wall_height);
             }
         }
 
@@ -303,8 +294,8 @@ int main(void) {
     double player_wall_collision_distance = 0.01;
 
     Map map = {
-        .map_width = MAP_SIZE,
-        .map_height = MAP_SIZE,
+        .width = MAP_SIZE,
+        .height = MAP_SIZE,
         .map_2d = &map_2d[0][0],
         .wall_empty = EMPTY
     };
@@ -380,7 +371,7 @@ int main(void) {
         vec2_scale(&player_look_at, player_wall_collision_distance);
         vec2_add_vec2(&player_look_at, player.position);
 
-        Vec2 player_look_at_in_map = vec2_map_norm_coord(player_look_at, map.map_width, map.map_height);
+        Vec2 player_look_at_in_map = vec2_map_norm_coord(player_look_at, map.width, map.height);
 
         if (map_check_wall(&map, (int)player_look_at_in_map.x, (int)player_look_at_in_map.y) == EMPTY
             && key_states[SDL_SCANCODE_W]) {
@@ -392,7 +383,7 @@ int main(void) {
         vec2_scale(&inverted_player_look_at, player_wall_collision_distance);
         vec2_add_vec2(&inverted_player_look_at, player.position);
 
-        Vec2 inverted_player_look_at_in_map = vec2_map_norm_coord(inverted_player_look_at, map.map_width, map.map_height);
+        Vec2 inverted_player_look_at_in_map = vec2_map_norm_coord(inverted_player_look_at, map.width, map.height);
 
         if (map_check_wall(&map, (int)inverted_player_look_at_in_map.x, (int)inverted_player_look_at_in_map.y) == EMPTY
             && key_states[SDL_SCANCODE_S]) {
