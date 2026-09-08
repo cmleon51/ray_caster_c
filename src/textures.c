@@ -13,7 +13,7 @@ int texture_load(Texture *texture, const char *texture_path, const char **failur
         return 1;
     }
 
-    texture->pixels = malloc(sizeof(SDL_Color) * texture->width * texture->height);
+    texture->pixels = malloc(sizeof(RGBA) * texture->width * texture->height);
 
     for (int y = 0; y < texture->height; y++) {
         for (int x = 0; x < texture->width; x++) {
@@ -23,7 +23,7 @@ int texture_load(Texture *texture, const char *texture_path, const char **failur
             unsigned char b = (channels > 2) ? pixel[2] : g;
             unsigned char a = (channels > 3) ? pixel[3] : 255;
 
-            texture->pixels[y * texture->width + x] = (SDL_Color) {
+            texture->pixels[y * texture->width + x] = (RGBA) {
                 .r = r,
                 .g = g,
                 .b = b,
@@ -37,7 +37,7 @@ int texture_load(Texture *texture, const char *texture_path, const char **failur
     return 0;
 }
 
-extern SDL_Color texture_get_pixel(Texture *texture, int x, int y);
+extern RGBA texture_get_pixel(Texture *texture, int x, int y);
 
 void texture_destroy(Texture *texture) {
     free(texture->pixels);

@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <math.h>
 #include <raycast.h>
 
 void raycast_walls(Map *walls_map, Map *floor_map, Map *ceiling_map, RayHit *rays_arr, Camera *player,
@@ -20,8 +21,8 @@ void raycast_walls(Map *walls_map, Map *floor_map, Map *ceiling_map, RayHit *ray
         vec2_normalize(&ray_dir);
 
         Vec2 ray_unit_step_size = {
-            .x = SDL_sqrt(1 + (ray_dir.y / ray_dir.x) * (ray_dir.y / ray_dir.x)),
-            .y = SDL_sqrt(1 + (ray_dir.x / ray_dir.y) * (ray_dir.x / ray_dir.y)),
+            .x = sqrt(1 + (ray_dir.y / ray_dir.x) * (ray_dir.y / ray_dir.x)),
+            .y = sqrt(1 + (ray_dir.x / ray_dir.y) * (ray_dir.x / ray_dir.y)),
         };
 
         Vec2 map_check = {
@@ -71,7 +72,7 @@ void raycast_walls(Map *walls_map, Map *floor_map, Map *ceiling_map, RayHit *ray
         if (wall_hit != walls_map->wall_empty) {
             double distance = side_hit == Y_SIDE ? distance_y : distance_x;
 
-            double perspective_correction = SDL_cos(DEG_TO_RADS(current_angle) - player_look_at_rads);
+            double perspective_correction = cos(DEG_TO_RADS(current_angle) - player_look_at_rads);
             double correct_perspective_distance = distance * perspective_correction;
             int full_wall_height = (int)(column_max_height / correct_perspective_distance);
             int wall_height = full_wall_height > column_max_height ? column_max_height : full_wall_height;
@@ -87,7 +88,7 @@ void raycast_walls(Map *walls_map, Map *floor_map, Map *ceiling_map, RayHit *ray
             else
                 wall_column_hit = ray_start.x + distance * ray_dir.x;
 
-            wall_column_hit -= SDL_floor(wall_column_hit);
+            wall_column_hit -= floor(wall_column_hit);
 
             rays_arr[x] = (RayHit) {
                 .wall_height = wall_height,

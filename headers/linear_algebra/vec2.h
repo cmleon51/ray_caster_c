@@ -1,9 +1,10 @@
 #ifndef VEC2_H
 #define VEC2_H
 
-#include <SDL3/SDL_stdinc.h>
+#define PI 3.14159265358979323846
 
-#define DEG_TO_RADS(deg_angle) (deg_angle * SDL_PI_D / 180.0)
+#define NS_TO_S(nano_seconds) ((nano_seconds) * 1e-9f)
+#define DEG_TO_RADS(deg_angle) ((deg_angle) * PI / 180.0)
 
 typedef struct {
     double x;

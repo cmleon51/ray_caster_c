@@ -1,13 +1,14 @@
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
+#include <platform/utils.h>
+#include <math.h>
 #include <stdlib.h>
 #include <linear_algebra/vec2.h>
 #include <map.h>
 #include <player.h>
 #include <camera.h>
-#include <sdl_utils.h>
 #include <textures.h>
 #include <raycast.h>
+#include <platform/window.h>
+#include <platform/threading.h>
 
 #define MAP_SIZE 50
 #define TEXTURE_COUNT 8
@@ -33,7 +34,7 @@ int load_textures() {
         int load_texture_result = texture_load(&textures[i], texture_paths[i], &failure);
 
         if (load_texture_result == 1) {
-            SDL_Log("Couldn't load the texture at %s for the following reason: %s", texture_paths[i], failure);
+            utils_log(LOG_ERROR, "Couldn't load the texture at %s for the following reason: %s", texture_paths[i], failure);
             return 1;
         }
     }
@@ -249,21 +250,21 @@ typedef struct {
     Map *walls_map;
     Map *floor_map;
     Map *ceiling_map;
-    SDL_Surface **surface;
-    SDL_AtomicInt *running;
-    SDL_Semaphore *start;
-    SDL_Semaphore *finished;
+    Window *game_window;
+    AtomicInt running;
+    Semaphore start;
+    Semaphore finished;
 } ThreadData;
 
-Vec2 surface_norm_point(SDL_Surface *surface, int x, int y) {
+Vec2 window_norm_point(Window *window, int x, int y) {
     return (Vec2) {
-        .x = (double)x / surface->w,
-        .y = (double)y / surface->h,
+        .x = (double)x / window_get_width(window),
+        .y = (double)y / window_get_height(window),
     };
 }
 
-SDL_Color map_sample_cell(Map *map, int cell_x, int cell_y, double tile_x, double tile_y) {
-    SDL_Color empty = {0x00, 0x00, 0x00, 0xFF};
+RGBA map_sample_cell(Map *map, int cell_x, int cell_y, double tile_x, double tile_y) {
+    RGBA empty = {0x00, 0x00, 0x00, 0xFF};
 
     if (cell_x < 0 || cell_x >= map->width || cell_y < 0 || cell_y >= map->height)
         return empty;
@@ -281,19 +282,21 @@ SDL_Color map_sample_cell(Map *map, int cell_x, int cell_y, double tile_x, doubl
 int render_portion(void *args) {
     ThreadData *data = (ThreadData *)args;
 
-    while (SDL_GetAtomicInt(data->running)) {
-        SDL_WaitSemaphore(data->start);
+    while (thread_get_atomic_int(data->running)) {
+        thread_wait_semaphore(data->start);
 
-        SDL_Surface *surface = *data->surface;
+        Window *window = data->game_window;
+        int window_width = window_get_width(window);
+        int window_height = window_get_height(window);
 
-        int width_threads_ratio = surface->w / data->max_threads;
+        int width_threads_ratio = window_width / data->max_threads;
         int column_start = width_threads_ratio * data->thread_nr;
         int column_end = width_threads_ratio + column_start;
 
         if (data->thread_nr == data->max_threads - 1)
-            column_end = surface->w;
+            column_end = window_width;
 
-        raycast_walls(data->walls_map, data->floor_map, data->ceiling_map, *data->rays_arr, data->camera, column_start, column_end, surface->w, surface->h);
+        raycast_walls(data->walls_map, data->floor_map, data->ceiling_map, *data->rays_arr, data->camera, column_start, column_end, window_width, window_height);
 
         for (int x = column_start; x < column_end; x++) {
             RayHit *curr_ray = &(*data->rays_arr)[x];
@@ -304,44 +307,44 @@ int render_portion(void *args) {
              *
              * */
 
-            double horizon = (double)surface->h / 2;
+            double horizon = (double)window_height / 2;
 
             int floor_start = curr_ray->wall_bottom > horizon ? curr_ray->wall_bottom : horizon + 1;
-            int span_count = surface->h - floor_start;
+            int span_count = window_height - floor_start;
 
             if (span_count > 0) {
-                SDL_Color floor_colors[span_count];
-                SDL_Color ceiling_colors[span_count];
+                RGBA floor_colors[span_count];
+                RGBA ceiling_colors[span_count];
 
                 Vec2 player_pos = vec2_map_norm_coord(data->camera->position, data->walls_map->width, data->walls_map->height);
 
-                for (int y = floor_start; y < surface->h; y++) {
+                for (int y = floor_start; y < window_height; y++) {
                     double row_distance = horizon / (y - horizon);
 
                     double floor_x = player_pos.x + row_distance * curr_ray->floor_dir.x;
                     double floor_y = player_pos.y + row_distance * curr_ray->floor_dir.y;
 
-                    double tile_x = floor_x - SDL_floor(floor_x);
-                    double tile_y = floor_y - SDL_floor(floor_y);
+                    double tile_x = floor_x - floor(floor_x);
+                    double tile_y = floor_y - floor(floor_y);
 
-                    int cell_x = SDL_floor(floor_x);
-                    int cell_y = SDL_floor(floor_y);
+                    int cell_x = floor(floor_x);
+                    int cell_y = floor(floor_y);
 
                     floor_colors[y - floor_start] =
                         map_sample_cell(data->floor_map, cell_x, cell_y, tile_x, tile_y);
 
-                    ceiling_colors[surface->h - 1 - y] =
+                    ceiling_colors[window_height - 1 - y] =
                         map_sample_cell(data->ceiling_map, cell_x, cell_y, tile_x, tile_y);
                 }
 
-                SDLUtils_normalized_FillSurfaceLine(surface,
-                    surface_norm_point(surface, x, 0),
-                    surface_norm_point(surface, x, span_count - 1),
+                window_draw_line(window,
+                    window_norm_point(window, x, 0),
+                    window_norm_point(window, x, span_count - 1),
                     ceiling_colors, span_count);
 
-                SDLUtils_normalized_FillSurfaceLine(surface,
-                    surface_norm_point(surface, x, floor_start),
-                    surface_norm_point(surface, x, surface->h - 1),
+                window_draw_line(window,
+                    window_norm_point(window, x, floor_start),
+                    window_norm_point(window, x, window_height - 1),
                     floor_colors, span_count);
             }
 
@@ -352,7 +355,7 @@ int render_portion(void *args) {
              * */
 
             if (curr_ray->wall_height > 0) {
-                SDL_Color wall_colors[curr_ray->wall_height];
+                RGBA wall_colors[curr_ray->wall_height];
                 Texture *current_texture = &textures[curr_ray->wall_hit - 1];
 
                 int texture_x = curr_ray->wall_column_hit * current_texture->width;
@@ -371,26 +374,21 @@ int render_portion(void *args) {
                     }
                 }
 
-                SDLUtils_normalized_FillSurfaceLine(surface,
-                    surface_norm_point(surface, x, curr_ray->wall_top),
-                    surface_norm_point(surface, x, curr_ray->wall_bottom),
+                window_draw_line(window,
+                    window_norm_point(window, x, curr_ray->wall_top),
+                    window_norm_point(window, x, curr_ray->wall_bottom),
                     wall_colors, curr_ray->wall_height);
             }
         }
 
-        SDL_SignalSemaphore(data->finished);
+        thread_signal_semaphore(data->finished);
     }
 
     return 0;
 }
 
 int main(void) {
-    SDL_SetAppMetadata("Ray Caster", "1.0", "com.ray_caster");
-
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
-        SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
-        return SDL_APP_FAILURE;
-    }
+    Window *window = window_create();
 
     int load_texture_result = load_textures();
 
@@ -398,18 +396,6 @@ int main(void) {
         free_textures();
         return load_texture_result;
     }
-
-    // specify 0, 0 in window width and height to let the window manager decide the window's size
-    SDL_Window *window =
-        SDL_CreateWindow("Ray Caster", 0, 0,
-                         SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
-
-    if (!window) {
-        SDL_Log("Couldn't create the application's window");
-        return SDL_APP_FAILURE;
-    }
-
-    SDL_Surface *surface = SDL_GetWindowSurface(window);
 
     Player player = {
         .camera = {
@@ -440,18 +426,18 @@ int main(void) {
         .map_2d = &ceiling_map_2d[0][0],
         .wall_empty = EMPTY
     };
-    RayHit *rays = malloc(sizeof(RayHit) * surface->w);
+    RayHit *rays = malloc(sizeof(RayHit) * window_get_width(window));
 
-    int max_threads = SDL_GetNumLogicalCPUCores();
+    int max_threads = thread_get_num_logical_cpu_cores();
     ThreadData thread_data[max_threads];
-    SDL_Thread *threads[max_threads];
-    SDL_AtomicInt running;
+    Thread threads[max_threads];
+    AtomicInt running = thread_create_atomic_int();
 
-    SDL_SetAtomicInt(&running, 1);
+    thread_set_atomic_int(running, 1);
 
     for (int i = 0; i < max_threads; i++) {
-        SDL_Semaphore *start_semaphore = SDL_CreateSemaphore(0);
-        SDL_Semaphore *finished_semaphore = SDL_CreateSemaphore(0);
+        Semaphore start_semaphore = thread_create_semaphore(0);
+        Semaphore finished_semaphore = thread_create_semaphore(0);
 
         thread_data[i] = (ThreadData) {
             .thread_nr = i,
@@ -461,53 +447,47 @@ int main(void) {
             .walls_map = &walls_map,
             .floor_map = &floor_map,
             .ceiling_map = &ceiling_map,
-            .surface = &surface,
-            .running = &running,
+            .game_window = window,
+            .running = running,
             .start = start_semaphore,
             .finished = finished_semaphore,
         };
 
-        threads[i] = SDL_CreateThread(render_portion, "thread", &thread_data[i]);
+        threads[i] = thread_create(render_portion, "thread", &thread_data[i]);
     }
 
-    SDL_Event event;
+    Event event;
 
-    int keep_window_open = 1;
-
-    SDL_Time time_start_loop = 0;
-    SDL_Time prev_time_start_loop = 0;
-    SDL_Time time_end_loop = 0;
+    NsTime time_start_loop = 0;
+    NsTime prev_time_start_loop = 0;
+    NsTime time_end_loop = 0;
     double delta_time = 0.0;
     double fps_count = 0.0;
 
-    while (keep_window_open) {
+    while (!window_should_quit(window)) {
         fps_count = NS_TO_S(time_end_loop - time_start_loop);
-        SDL_GetCurrentTime(&time_start_loop);
+        time_start_loop = utils_get_current_time_ns();
 
         delta_time = NS_TO_S(time_start_loop - prev_time_start_loop);
 
-        SDL_GetCurrentTime(&prev_time_start_loop);
+        prev_time_start_loop = utils_get_current_time_ns();
 
-        SDL_Log("FPS: %f", 1.0 / fps_count);
+        utils_log(LOG_INFO, "FPS: %f", 1.0 / fps_count);
 
-        while (SDL_PollEvent(&event) > 0) {
-            switch (event.type) {
-            case SDL_EVENT_QUIT:
-                keep_window_open = 0;
+        while ((event = window_poll_event(window)) != EVENT_NONE) {
+            switch (event) {
+            case EVENT_QUIT_APP:
+                    window_close(window);
                 break;
-            case SDL_EVENT_WINDOW_RESIZED:
-                if (!SDL_GetWindowSize(window, NULL, NULL)) {
-                    SDL_Log("Panicked getting window size: %s", SDL_GetError());
-                    return SDL_APP_FAILURE;
+            case EVENT_WINDOW_RESIZED:
+                if (window_resize(window)) {
+                    return 1;
                 }
 
-                surface = SDL_GetWindowSurface(window);
-                rays = realloc(rays, sizeof(RayHit) * surface->w);
+                rays = realloc(rays, sizeof(RayHit) * window_get_width(window));
                 break;
             }
         }
-
-        const bool *key_states = SDL_GetKeyboardState(NULL);
 
         Vec2 player_look_at = vec2_from_angle(player.camera.look_at);
         vec2_normalize(&player_look_at);
@@ -517,7 +497,7 @@ int main(void) {
         Vec2 player_look_at_in_map = vec2_map_norm_coord(player_look_at, walls_map.width, walls_map.height);
 
         if (map_check_intersection(&walls_map, (int)player_look_at_in_map.x, (int)player_look_at_in_map.y) == EMPTY
-            && key_states[SDL_SCANCODE_W]) {
+            && window_is_key_pressed(KEY_W)) {
             player_move(&player, FORWARD, delta_time);
         }
 
@@ -529,50 +509,48 @@ int main(void) {
         Vec2 inverted_player_look_at_in_map = vec2_map_norm_coord(inverted_player_look_at, walls_map.width, walls_map.height);
 
         if (map_check_intersection(&walls_map, (int)inverted_player_look_at_in_map.x, (int)inverted_player_look_at_in_map.y) == EMPTY
-            && key_states[SDL_SCANCODE_S]) {
+            && window_is_key_pressed(KEY_S)) {
             player_move(&player, BACKWARDS, delta_time);
         }
 
-        if (key_states[SDL_SCANCODE_A])
+        if (window_is_key_pressed(KEY_A))
             player_rotate(&player, LEFT, delta_time);
-        if (key_states[SDL_SCANCODE_D])
+        if (window_is_key_pressed(KEY_D))
             player_rotate(&player, RIGHT, delta_time);
 
-
-        SDL_ClearSurface(surface, 0x00, 0x00, 0x00, 0xFF);
+        window_clear_surface(window);
 
         for (int i = 0; i < max_threads; i++) {
-            SDL_SignalSemaphore(thread_data[i].start);
+            thread_signal_semaphore(thread_data[i].start);
         }
 
         for (int i = 0; i < max_threads; i++) {
-            SDL_WaitSemaphore(thread_data[i].finished);
+            thread_wait_semaphore(thread_data[i].finished);
         }
 
-        SDL_UpdateWindowSurface(window);
+        window_flip(window);
 
-        SDL_GetCurrentTime(&time_end_loop);
+        time_end_loop = utils_get_current_time_ns();
     }
 
-    SDL_SetAtomicInt(&running, 0);
+    thread_set_atomic_int(running, 0);
 
     for (int i = 0; i < max_threads; i++) {
-        SDL_SignalSemaphore(thread_data[i].start);
+        thread_signal_semaphore(thread_data[i].start);
     }
 
     for (int i = 0; i < max_threads; i++) {
-        SDL_WaitThread(threads[i], NULL);
+        thread_wait(threads[i]);
 
-        SDL_DestroySemaphore(thread_data[i].start);
-        SDL_DestroySemaphore(thread_data[i].finished);
+        thread_destroy_semaphore(thread_data[i].start);
+        thread_destroy_semaphore(thread_data[i].finished);
     }
 
-    free(rays);
+    thread_destroy_atomic_int(running);
     free_textures();
+    free(rays);
 
-    SDL_DestroyWindow(window);
-    SDL_DestroySurface(surface);
-    SDL_Quit();
+    window_destroy(window);
 
     return 0;
 }

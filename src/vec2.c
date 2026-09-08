@@ -1,5 +1,7 @@
 #include <linear_algebra/vec2.h>
 
+#include <math.h>
+
 void vec2_add_double(Vec2 *vec, double addition) {
     vec->x += addition;
     vec->y += addition;
@@ -53,12 +55,12 @@ Vec2 vec2_map_norm_coord(Vec2 vec_to_modify, double max_x,
 Vec2 vec2_from_angle(double degs) {
     degs = DEG_TO_RADS(degs);
 
-    double cos_a = SDL_cos(degs);
-    double sin_a = SDL_sin(degs);
+    double cos_a = cos(degs);
+    double sin_a = sin(degs);
 
     return (Vec2){ .x = cos_a, .y = sin_a };
 }
 
 double vec2_get_length(Vec2 *vec) {
-    return SDL_sqrt(vec->x * vec->x + vec->y * vec->y);
+    return sqrt(vec->x * vec->x + vec->y * vec->y);
 }

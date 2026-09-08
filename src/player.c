@@ -1,5 +1,5 @@
-#include <SDL3/SDL_init.h>
-#include <SDL3/SDL_log.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdlib.h>
 
 #include <player.h>
@@ -16,9 +16,9 @@ void player_move(Player *player, Direction direction, double delta_time) {
         vec2_subtract_vec2(&player->camera.position, look_at_vector);
         break;
     default:
-        SDL_Log("The provided direction: %d is not yet implemented in function %s",
+        fprintf(stderr, "The provided direction: %d is not yet implemented in function %s\n",
                 direction, __FUNCTION__);
-        exit(SDL_APP_FAILURE);
+        exit(EXIT_FAILURE);
         break;
     };
 }
@@ -32,9 +32,9 @@ void player_rotate(Player *player, Direction direction, double delta_time) {
         player->camera.look_at += player->rotation_speed * delta_time;
         break;
     default:
-        SDL_Log("The provided direction: %d is not yet implemented in function %s",
+        fprintf(stderr, "The provided direction: %d is not yet implemented in function %s\n",
                 direction, __FUNCTION__);
-        exit(SDL_APP_FAILURE);
+        exit(EXIT_FAILURE);
         break;
     }
 }
