@@ -10,6 +10,8 @@
 #include <platform/window.h>
 #include <platform/threading.h>
 
+#define PLAYER_LIGHT_INTENSITY 2.0
+
 #define MAP_SIZE 50
 #define TEXTURE_COUNT 8
 
@@ -330,11 +332,25 @@ int render_portion(void *args) {
                     int cell_x = floor(floor_x);
                     int cell_y = floor(floor_y);
 
-                    floor_colors[y - floor_start] =
+                    double light_intensity = 1.0 / row_distance * PLAYER_LIGHT_INTENSITY;
+                    light_intensity = light_intensity > 1.0 ? 1.0 : light_intensity;
+                    int floor_index = y - floor_start;
+
+                    int ceiling_index = window_height - 1 - y;
+
+                    floor_colors[floor_index] =
                         map_sample_cell(data->floor_map, cell_x, cell_y, tile_x, tile_y);
 
-                    ceiling_colors[window_height - 1 - y] =
+                    floor_colors[floor_index].r *= light_intensity;
+                    floor_colors[floor_index].g *= light_intensity;
+                    floor_colors[floor_index].b *= light_intensity;
+
+                    ceiling_colors[ceiling_index] =
                         map_sample_cell(data->ceiling_map, cell_x, cell_y, tile_x, tile_y);
+
+                    ceiling_colors[ceiling_index].r *= light_intensity;
+                    ceiling_colors[ceiling_index].g *= light_intensity;
+                    ceiling_colors[ceiling_index].b *= light_intensity;
                 }
 
                 window_draw_line(window,
@@ -361,6 +377,9 @@ int render_portion(void *args) {
                 int texture_x = curr_ray->wall_column_hit * current_texture->width;
                 double texture_v = curr_ray->wall_texture_v;
 
+                double light_intensity = 1.0 / curr_ray->wall_distance * PLAYER_LIGHT_INTENSITY;
+                light_intensity = light_intensity > 1.0 ? 1.0 : light_intensity;
+
                 for (int y = 0; y < curr_ray->wall_height; y++) {
                     int texture_y = (int)(texture_v * current_texture->height);
                     texture_v += curr_ray->wall_texture_v_step;
@@ -372,6 +391,10 @@ int render_portion(void *args) {
                         wall_colors[y].g = wall_colors[y].g >> 1;
                         wall_colors[y].b = wall_colors[y].b >> 1;
                     }
+
+                    wall_colors[y].r *= light_intensity;
+                    wall_colors[y].g *= light_intensity;
+                    wall_colors[y].b *= light_intensity;
                 }
 
                 window_draw_line(window,

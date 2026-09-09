@@ -97,6 +97,7 @@ void raycast_walls(Map *walls_map, Map *floor_map, Map *ceiling_map, RayHit *ray
                 .wall_texture_v = (double)wall_height_clip / full_wall_height,
                 .wall_texture_v_step = 1.0 / full_wall_height,
                 .wall_column_hit = wall_column_hit,
+                .wall_distance = correct_perspective_distance,
                 .wall_hit = wall_hit,
                 .side_hit = side_hit,
                 .floor_dir = {
