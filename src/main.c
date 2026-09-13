@@ -10,7 +10,7 @@
 #include <platform/window.h>
 #include <platform/threading.h>
 
-#define PLAYER_LIGHT_INTENSITY 2.0
+#define PLAYER_LIGHT_INTENSITY 0.2
 
 #define MAP_SIZE 50
 #define TEXTURE_COUNT 14
@@ -68,7 +68,7 @@ enum CellType {
     TEXTURE_SHIP_EMBLEM,
     TEXTURE_SHIP_DOOR,
     TEXTURE_SHIP_VENTS,
-    TEXTURE_DESERT_PANEL,
+    TEXTURE_LIGHT,
     TEXTURE_DESERT_PLASTER,
     TEXTURE_DESERT_CLIFF,
     TEXTURE_SHIP_FLOOR,
@@ -83,21 +83,22 @@ enum CellType {
 //   1 ship pipe panel     6 ship emblem        11 desert cliff
 //   2 ship machinery      7 ship arched door   12 ship floor
 //   3 ship control panel  8 ship vents         13 desert floor
-//   4 ship fan            9 desert panel       14 ceiling
+//   4 ship fan            9 light              14 ceiling
+// Light (9) uses the desert panel texture, and every id 9 cell emits light.
 CellType map_2d[MAP_SIZE][MAP_SIZE] = {
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 7, 7, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 1, 3, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 1, 3, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 2, 2, 0, 2, 2, 2, 1, 2, 2, 0, 2, 2, 2, 1, 2, 2, 0, 2, 2, 2, 1, 1, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 1, 3, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9},
     {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 3, 3, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 2, 2, 0, 2, 2, 2, 1, 2, 2, 0, 2, 2, 2, 1, 2, 2, 0, 2, 2, 2, 1, 1, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
@@ -125,7 +126,7 @@ CellType map_2d[MAP_SIZE][MAP_SIZE] = {
     {11, 0, 0, 0, 0, 10, 0, 0, 0, 8, 0, 0, 0, 0, 8, 0, 0, 0, 10, 0, 0, 0, 10, 1, 0, 0, 1, 1, 5, 5, 5, 5, 0, 0, 5, 5, 5, 1, 4, 4, 4, 4, 0, 0, 4, 4, 4, 4, 0, 1},
     {11, 0, 0, 0, 0, 10, 0, 0, 0, 8, 0, 0, 0, 0, 8, 0, 0, 0, 10, 0, 0, 0, 10, 1, 0, 0, 1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {11, 0, 0, 0, 0, 10, 0, 0, 0, 8, 0, 0, 0, 0, 8, 0, 0, 0, 10, 0, 0, 0, 10, 1, 0, 0, 1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    {11, 0, 0, 0, 0, 10, 0, 0, 0, 10, 8, 8, 8, 8, 10, 0, 0, 0, 10, 0, 0, 0, 10, 1, 0, 0, 1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {11, 0, 0, 0, 0, 10, 0, 0, 0, 10, 8, 8, 8, 8, 10, 0, 0, 0, 10, 0, 0, 0, 10, 1, 0, 0, 1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {11, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 10, 1, 0, 0, 1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {11, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 10, 1, 0, 0, 1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {11, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 10, 1, 0, 0, 1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
@@ -146,7 +147,7 @@ CellType map_2d[MAP_SIZE][MAP_SIZE] = {
 // junction) has ship floor and ceiling. The south-west grounds (rows 26-48,
 // cols 1-23) are open desert: desert floor and no ceiling, so the sky renders
 // black -- except the inner vault (rows 35-40, cols 9-14), which is roofed and
-// has a ship floor.
+// has a ship floor. Id 9 cells are light tiles in every map.
 CellType floor_map_2d[MAP_SIZE][MAP_SIZE] = {
     {12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
     {12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
@@ -173,8 +174,8 @@ CellType floor_map_2d[MAP_SIZE][MAP_SIZE] = {
     {12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
     {12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
     {12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
-    {12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
-    {13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
+    {12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 9, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 9, 12},
+    {13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 9, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
     {13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
     {13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
     {13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
@@ -208,7 +209,7 @@ CellType ceiling_map_2d[MAP_SIZE][MAP_SIZE] = {
     {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-    {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+    {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 9, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
@@ -238,7 +239,7 @@ CellType ceiling_map_2d[MAP_SIZE][MAP_SIZE] = {
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 9, 14, 14, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
@@ -288,6 +289,70 @@ RGBA map_sample_cell(Map *map, int cell_x, int cell_y, double tile_x, double til
     Texture *texture = &textures[cell - 1];
 
     return texture_get_pixel(texture, tile_x * texture->width, tile_y * texture->height);
+}
+
+typedef struct {
+    double radius;
+    double intensity;
+    Vec2 light_pos;
+} LightSource;
+
+int world_lights_count = 0;
+LightSource *world_light_sources;
+
+int light_get_properties(CellType cell, double *radius, double *intensity) {
+    switch (cell) {
+        case TEXTURE_LIGHT:
+            *radius = 4.0;
+            *intensity = 0.7;
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+void light_get_world_sources(Map *map) {
+    static int light_sources_capacity = 10;
+
+    if (!world_light_sources) {
+        world_light_sources = malloc(sizeof(LightSource) * light_sources_capacity);
+    }
+
+    for (int x = 0; x < map->width; x++) {
+        for (int y = 0; y < map->height; y++) {
+            Vec2 light_pos = {
+                .x = (double)x + 0.5,
+                .y = (double)y + 0.5,
+            };
+
+            double radius, intensity;
+
+            if (light_get_properties(map_check_intersection(map, x, y), &radius, &intensity)) {
+                world_light_sources[world_lights_count] = (LightSource) {
+                    .light_pos = light_pos,
+                    .intensity = intensity,
+                    .radius = radius
+                };
+
+                world_lights_count++;
+            }
+
+            if (world_lights_count == light_sources_capacity) {
+                light_sources_capacity += 10;
+                world_light_sources = realloc(world_light_sources, sizeof(LightSource) * light_sources_capacity);
+            }
+        }
+    }
+}
+
+double light_get_intensity(double distance, double intensity, double radius) {
+    if (distance >= radius)
+        return 0.0;
+
+    double distance_ratio = distance / radius;
+    double window = 1.0 - pow(distance_ratio, 4.0);
+
+    return intensity * (window * window) / (distance * distance + 1.0);
 }
 
 int render_portion(void *args) {
@@ -342,13 +407,27 @@ int render_portion(void *args) {
                     int cell_y = floor(floor_y);
 
                     double light_intensity = 1.0 / row_distance * PLAYER_LIGHT_INTENSITY;
-                    light_intensity = light_intensity > 1.0 ? 1.0 : light_intensity;
                     int floor_index = y - floor_start;
 
                     int ceiling_index = window_height - 1 - y;
 
                     floor_colors[floor_index] =
                         map_sample_cell(data->floor_map, cell_x, cell_y, tile_x, tile_y);
+
+                    for (int i = 0; i < world_lights_count; i++) {
+                        LightSource *current_light = &world_light_sources[i];
+
+                        Vec2 cell_distance_from_light = {
+                            .x = current_light->light_pos.x - floor_x,
+                            .y = current_light->light_pos.y - floor_y,
+                        };
+
+                        double cell_distance = vec2_get_length(&cell_distance_from_light);
+
+                        light_intensity += light_get_intensity(cell_distance, current_light->intensity, current_light->radius);
+                    }
+
+                    light_intensity = light_intensity > 1.0 ? 1.0 : light_intensity;
 
                     floor_colors[floor_index].r *= light_intensity;
                     floor_colors[floor_index].g *= light_intensity;
@@ -386,12 +465,28 @@ int render_portion(void *args) {
                 int texture_x = curr_ray->wall_column_hit * current_texture->width;
                 double texture_v = curr_ray->wall_texture_v;
 
-                double light_intensity = 1.0 / curr_ray->wall_distance * PLAYER_LIGHT_INTENSITY;
-                light_intensity = light_intensity > 1.0 ? 1.0 : light_intensity;
+                double player_light_intensity = 1.0 / curr_ray->wall_distance * PLAYER_LIGHT_INTENSITY;
 
                 for (int y = 0; y < curr_ray->wall_height; y++) {
                     int texture_y = (int)(texture_v * current_texture->height);
+
+                    double pixel_height = 1.0 - texture_v;
                     texture_v += curr_ray->wall_texture_v_step;
+
+                    double light_intensity = player_light_intensity;
+
+                    for (int i = 0; i < world_lights_count; i++) {
+                        LightSource *current_light = &world_light_sources[i];
+
+                        double distance_x = current_light->light_pos.x - curr_ray->wall_hit_position.x;
+                        double distance_y = current_light->light_pos.y - curr_ray->wall_hit_position.y;
+
+                        double wall_distance = sqrt(distance_x * distance_x + distance_y * distance_y + pixel_height * pixel_height);
+
+                        light_intensity += light_get_intensity(wall_distance, current_light->intensity, current_light->radius);
+                    }
+
+                    light_intensity = light_intensity > 1.0 ? 1.0 : light_intensity;
 
                     wall_colors[y] = texture_get_pixel(current_texture, texture_x, texture_y);
 
@@ -459,6 +554,16 @@ int main(void) {
         .wall_empty = EMPTY
     };
     RayHit *rays = malloc(sizeof(RayHit) * window_get_width(window));
+
+    /*
+    *
+    * LOAD LIGHTS
+    *
+    */
+
+    light_get_world_sources(&walls_map);
+    light_get_world_sources(&floor_map);
+    light_get_world_sources(&ceiling_map);
 
     int max_threads = thread_get_num_logical_cpu_cores();
     ThreadData thread_data[max_threads];
@@ -579,6 +684,7 @@ int main(void) {
     }
 
     thread_destroy_atomic_int(running);
+    free(world_light_sources);
     free_textures();
     free(rays);
 
