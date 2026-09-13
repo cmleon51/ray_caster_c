@@ -99,6 +99,10 @@ void raycast_walls(Map *walls_map, Map *floor_map, Map *ceiling_map, RayHit *ray
                 .wall_texture_v_step = 1.0 / full_wall_height,
                 .wall_column_hit = wall_column_hit,
                 .wall_distance = correct_perspective_distance,
+                .wall_hit_position = {
+                    .x = ray_start.x + distance * ray_dir.x,
+                    .y = ray_start.y + distance * ray_dir.y,
+                },
                 .wall_hit = wall_hit,
                 .side_hit = side_hit,
                 .floor_dir = {
