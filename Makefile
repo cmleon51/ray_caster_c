@@ -47,6 +47,14 @@ ifeq ($(BACKEND),sdl3)
         $(error BACKEND=sdl3 was requested, but SDL3 was not found; tried \
 `pkg-config --exists sdl3` and `sdl3-config`)
     endif
+
+    ifeq ($(shell pkg-config --exists sdl3-ttf >/dev/null 2>&1 && echo yes),yes)
+        BACKEND_CFLAGS += $(shell pkg-config --cflags sdl3-ttf)
+        BACKEND_LIBS += $(shell pkg-config --libs sdl3-ttf)
+    else
+        $(error BACKEND=sdl3 needs SDL3_ttf for text rendering, but \
+`pkg-config --exists sdl3-ttf` failed; install the SDL3_ttf development files)
+    endif
 endif
 
 CFLAGS += $(BACKEND_CFLAGS)

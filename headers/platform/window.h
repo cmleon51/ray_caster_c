@@ -3,6 +3,8 @@
 
 #include <linear_algebra/vec2.h>
 
+#define MAX_FONTS_COUNT 10
+
 typedef struct Window Window;
 
 typedef struct {
@@ -45,8 +47,12 @@ int window_is_key_pressed(KeyPress key);
 
 void window_draw_line(Window *window, Vec2 norm_start, Vec2 norm_end, RGBA *colors, int colors_count);
 
+void window_draw_text(Window *window, Vec2 norm_pos, const char *font_path,
+                      double size, const char *fmt, ...);
+
 void window_close(Window *window);
 
 void window_destroy(Window *window);
+
 
 #endif // WINDOW_H

@@ -495,8 +495,6 @@ int main(void) {
 
         prev_time_start_loop = utils_get_current_time_ns();
 
-        utils_log(LOG_INFO, "FPS: %f", 1.0 / fps_count);
-
         while ((event = window_poll_event(window)) != EVENT_NONE) {
             switch (event) {
             case EVENT_QUIT_APP:
@@ -550,6 +548,8 @@ int main(void) {
         for (int i = 0; i < max_threads; i++) {
             thread_wait_semaphore(thread_data[i].finished);
         }
+
+        window_draw_text(window, (Vec2) {.x = 0.01, .y = 0.01}, "./assets/fonts/default.ttf", 30.0, "FPS: %f", 1.0 / fps_count);
 
         window_flip(window);
 

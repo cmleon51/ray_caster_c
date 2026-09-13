@@ -1,4 +1,9 @@
+#include <linear_algebra/vec2.h>
+#include <SDL3/SDL_error.h>
+#include <SDL3/SDL_log.h>
 #include <platform/window.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include <SDL3/SDL_events.h>
@@ -6,11 +11,21 @@
 #include <SDL3/SDL_video.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#include <SDL3_ttf/SDL_ttf.h>
+
+typedef struct {
+    const char *font_path;
+    TTF_Font *loaded_font;
+} Font;
+
+static int loaded_fonts_index = 0;
+static Font loaded_fonts[MAX_FONTS_COUNT];
 
 struct Window {
     SDL_Window *window;
     SDL_Surface *surface;
     SDL_Event event;
+    TTF_TextEngine *text_engine;
     int window_should_quit;
 };
 
@@ -20,6 +35,11 @@ Window *window_create() {
 
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
+        return NULL;
+    }
+
+    if (!TTF_Init()) {
+        SDL_Log("Couldn't initialize SDL3_TTF: %s", SDL_GetError());
         return NULL;
     }
 
@@ -33,6 +53,7 @@ Window *window_create() {
     }
 
     window->surface = SDL_GetWindowSurface(window->window);
+    window->text_engine = TTF_CreateSurfaceTextEngine();
 
     return window;
 }
@@ -178,6 +199,66 @@ void window_draw_line(Window *window, Vec2 norm_start, Vec2 norm_end, RGBA *colo
         SDL_UnlockSurface(window_surface);
 }
 
+void window_draw_text(Window *window, Vec2 norm_pos, const char *font_path,
+                      double size, const char *fmt, ...) {
+    if (loaded_fonts_index == MAX_FONTS_COUNT) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Maximum font capacity of %d reached when loading: %s", MAX_FONTS_COUNT, font_path);
+        exit(1);
+    }
+
+    Font *font_found = NULL;
+
+    for (int i = 0; i < loaded_fonts_index; i++) {
+        if (strcmp(loaded_fonts[i].font_path, font_path) == 0) {
+            font_found = &loaded_fonts[i];
+            break;
+        }
+    }
+
+    if (!font_found) {
+        loaded_fonts[loaded_fonts_index] = (Font) {
+            .font_path = font_path,
+            .loaded_font = TTF_OpenFont(font_path, size)
+        };
+        font_found = &loaded_fonts[loaded_fonts_index];
+
+        loaded_fonts_index++;
+    }
+
+    int formatted_string_len = 0;
+    size_t formatted_string_size = 0;
+    char *formatted_string = NULL;
+    va_list ap;
+
+    va_start(ap, fmt);
+    formatted_string_len = vsnprintf(formatted_string, formatted_string_size, fmt, ap);
+    va_end(ap);
+
+    if (formatted_string_len < 0) {
+        SDL_Log("Couldn't format the provided string in %s", __FUNCTION__);
+        exit(1);
+    }
+
+    size = (size_t) formatted_string_len + 1;
+    formatted_string = malloc(size);
+    if (!formatted_string) {
+        SDL_Log("Couldn't alloc the required size for the formatted string in %s", __FUNCTION__);
+        exit(1);
+    }
+
+    va_start(ap, fmt);
+    formatted_string_len = vsnprintf(formatted_string, size, fmt, ap);
+    va_end(ap);
+
+    norm_pos = vec2_map_norm_coord(norm_pos, window->surface->w, window->surface->h);
+
+    TTF_Text *text_to_draw = TTF_CreateText(window->text_engine, font_found->loaded_font, formatted_string, 0);
+
+    TTF_DrawSurfaceText(text_to_draw, norm_pos.x, norm_pos.y, window->surface);
+    TTF_DestroyText(text_to_draw);
+    free(formatted_string);
+}
+
 void window_close(Window *window) {
     window->window_should_quit = 1;
 }
@@ -186,5 +267,11 @@ void window_destroy(Window *window) {
     SDL_DestroySurface(window->surface);
     SDL_DestroyWindow(window->window);
 
+    for (int i = 0; i < loaded_fonts_index; i++) {
+        TTF_CloseFont(loaded_fonts[i].loaded_font);
+    }
+    TTF_DestroySurfaceTextEngine(window->text_engine);
+
+    TTF_Quit();
     SDL_Quit();
 }
