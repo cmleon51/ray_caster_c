@@ -1,3 +1,4 @@
+#include <linear_algebra/vec3.h>
 #include <platform/utils.h>
 #include <math.h>
 #include <stdlib.h>
@@ -10,8 +11,9 @@
 #include <raycast.h>
 #include <platform/window.h>
 #include <platform/threading.h>
+#include <light.h>
 
-#define PLAYER_LIGHT_INTENSITY 2.0
+#define PLAYER_LIGHT_INTENSITY 0.2
 
 #define MAP_SIZE 50
 #define TEXTURE_COUNT 14
@@ -69,7 +71,7 @@ enum CellType {
     TEXTURE_SHIP_EMBLEM,
     TEXTURE_SHIP_DOOR,
     TEXTURE_SHIP_VENTS,
-    TEXTURE_DESERT_PANEL,
+    TEXTURE_LIGHT,
     TEXTURE_DESERT_PLASTER,
     TEXTURE_DESERT_CLIFF,
     TEXTURE_SHIP_FLOOR,
@@ -84,21 +86,22 @@ enum CellType {
 //   1 ship pipe panel     6 ship emblem        11 desert cliff
 //   2 ship machinery      7 ship arched door   12 ship floor
 //   3 ship control panel  8 ship vents         13 desert floor
-//   4 ship fan            9 desert panel       14 ceiling
+//   4 ship fan            9 light              14 ceiling
+// Light (9) uses the desert panel texture, and every id 9 cell emits light.
 CellType map_2d[MAP_SIZE][MAP_SIZE] = {
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 7, 7, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 1, 3, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 1, 3, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 2, 2, 0, 2, 2, 2, 1, 2, 2, 0, 2, 2, 2, 1, 2, 2, 0, 2, 2, 2, 1, 1, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 1, 3, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9},
     {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 3, 3, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 2, 2, 0, 2, 2, 2, 1, 2, 2, 0, 2, 2, 2, 1, 2, 2, 0, 2, 2, 2, 1, 1, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
@@ -126,7 +129,7 @@ CellType map_2d[MAP_SIZE][MAP_SIZE] = {
     {11, 0, 0, 0, 0, 10, 0, 0, 0, 8, 0, 0, 0, 0, 8, 0, 0, 0, 10, 0, 0, 0, 10, 1, 0, 0, 1, 1, 5, 5, 5, 5, 0, 0, 5, 5, 5, 1, 4, 4, 4, 4, 0, 0, 4, 4, 4, 4, 0, 1},
     {11, 0, 0, 0, 0, 10, 0, 0, 0, 8, 0, 0, 0, 0, 8, 0, 0, 0, 10, 0, 0, 0, 10, 1, 0, 0, 1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {11, 0, 0, 0, 0, 10, 0, 0, 0, 8, 0, 0, 0, 0, 8, 0, 0, 0, 10, 0, 0, 0, 10, 1, 0, 0, 1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    {11, 0, 0, 0, 0, 10, 0, 0, 0, 10, 8, 8, 8, 8, 10, 0, 0, 0, 10, 0, 0, 0, 10, 1, 0, 0, 1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {11, 0, 0, 0, 0, 10, 0, 0, 0, 10, 8, 8, 8, 8, 10, 0, 0, 0, 10, 0, 0, 0, 10, 1, 0, 0, 1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {11, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 10, 1, 0, 0, 1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {11, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 10, 1, 0, 0, 1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {11, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 10, 1, 0, 0, 1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
@@ -147,7 +150,7 @@ CellType map_2d[MAP_SIZE][MAP_SIZE] = {
 // junction) has ship floor and ceiling. The south-west grounds (rows 26-48,
 // cols 1-23) are open desert: desert floor and no ceiling, so the sky renders
 // black -- except the inner vault (rows 35-40, cols 9-14), which is roofed and
-// has a ship floor.
+// has a ship floor. Id 9 cells are light tiles in every map.
 CellType floor_map_2d[MAP_SIZE][MAP_SIZE] = {
     {12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
     {12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
@@ -174,8 +177,8 @@ CellType floor_map_2d[MAP_SIZE][MAP_SIZE] = {
     {12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
     {12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
     {12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
-    {12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
-    {13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
+    {12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 9, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 9, 12},
+    {13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 9, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
     {13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
     {13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
     {13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
@@ -209,7 +212,7 @@ CellType ceiling_map_2d[MAP_SIZE][MAP_SIZE] = {
     {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-    {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+    {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 9, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
@@ -239,7 +242,7 @@ CellType ceiling_map_2d[MAP_SIZE][MAP_SIZE] = {
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 9, 14, 14, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
@@ -289,6 +292,56 @@ RGBA map_sample_cell(Map *map, int cell_x, int cell_y, double tile_x, double til
     Texture *texture = &textures[cell - 1];
 
     return texture_get_pixel(texture, tile_x * texture->width, tile_y * texture->height);
+}
+
+LightMap *floor_light_map;
+LightMap *ceiling_light_map;
+LightMap *walls_light_map;
+
+int light_get_properties(CellType cell, double *radius, double *intensity) {
+    switch (cell) {
+        case TEXTURE_LIGHT:
+            *radius = 4.0;
+            *intensity = 0.7;
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+void get_world_static_lights(Map *map, Light **static_lights, int *lights_count, Vec3 light_offset) {
+    static int light_sources_capacity = 10;
+
+    if (!(*static_lights))
+        *static_lights = malloc(sizeof(Light) * light_sources_capacity);
+
+    for (int x = 0; x < map->width; x++) {
+        for (int y = 0; y < map->height; y++) {
+            Vec3 light_pos = {
+                .x = (double)x + 0.5,
+                .y = (double)y + 0.5,
+                .z = 0.0
+            };
+            vec3_add_vec3(&light_pos, &light_offset);
+
+            double radius, intensity;
+
+            if (light_get_properties(map_check_intersection(map, x, y), &radius, &intensity)) {
+                (*static_lights)[*lights_count] = (Light) {
+                    .position = light_pos,
+                    .intensity = intensity,
+                    .radius = radius
+                };
+
+                (*lights_count)++;
+            }
+
+            if (*lights_count == light_sources_capacity) {
+                light_sources_capacity += 10;
+                *static_lights = realloc(*static_lights, sizeof(Light) * light_sources_capacity);
+            }
+        }
+    }
 }
 
 int render_portion(void *args) {
@@ -342,25 +395,44 @@ int render_portion(void *args) {
                     int cell_x = floor(floor_x);
                     int cell_y = floor(floor_y);
 
-                    double light_intensity = 1.0 / row_distance * PLAYER_LIGHT_INTENSITY;
-                    light_intensity = light_intensity > 1.0 ? 1.0 : light_intensity;
                     int floor_index = y - floor_start;
 
                     int ceiling_index = window_height - 1 - y;
 
+                    /**
+                     *
+                     * CALCULATE LIGHT INTENSITY THROUGH THE LIGHTMAP
+                     *
+                     */
+                    double light_intensity = 1.0 / row_distance * PLAYER_LIGHT_INTENSITY;
+
+                    Vec2 lightmap_cell = (Vec2) { .x = cell_x, .y = cell_y };
+                    Vec2 lumel_cell = (Vec2) { .x = tile_x, .y = tile_y };
+
+                    double floor_light_intensity = light_intensity + lightmap_get_lumel_value(floor_light_map, lightmap_cell, lumel_cell, SURFACE_TOP);
+                    double ceiling_light_intensity = light_intensity + lightmap_get_lumel_value(ceiling_light_map, lightmap_cell, lumel_cell, SURFACE_BOTTOM);
+
+                    floor_light_intensity = floor_light_intensity > 1.0 ? 1.0 : floor_light_intensity;
+                    ceiling_light_intensity = ceiling_light_intensity > 1.0 ? 1.0 : ceiling_light_intensity;
+
+                    /**
+                     *
+                     * APPLY FLOOR AND CEILING COLORS
+                     *
+                     */
                     floor_colors[floor_index] =
                         map_sample_cell(data->floor_map, cell_x, cell_y, tile_x, tile_y);
 
-                    floor_colors[floor_index].r *= light_intensity;
-                    floor_colors[floor_index].g *= light_intensity;
-                    floor_colors[floor_index].b *= light_intensity;
+                    floor_colors[floor_index].r *= floor_light_intensity;
+                    floor_colors[floor_index].g *= floor_light_intensity;
+                    floor_colors[floor_index].b *= floor_light_intensity;
 
                     ceiling_colors[ceiling_index] =
                         map_sample_cell(data->ceiling_map, cell_x, cell_y, tile_x, tile_y);
 
-                    ceiling_colors[ceiling_index].r *= light_intensity;
-                    ceiling_colors[ceiling_index].g *= light_intensity;
-                    ceiling_colors[ceiling_index].b *= light_intensity;
+                    ceiling_colors[ceiling_index].r *= ceiling_light_intensity;
+                    ceiling_colors[ceiling_index].g *= ceiling_light_intensity;
+                    ceiling_colors[ceiling_index].b *= ceiling_light_intensity;
                 }
 
                 window_draw_line(window,
@@ -387,10 +459,17 @@ int render_portion(void *args) {
                 int texture_x = curr_ray->wall_column_hit * current_texture->width;
                 double texture_v = curr_ray->wall_texture_v;
 
-                double light_intensity = 1.0 / curr_ray->wall_distance * PLAYER_LIGHT_INTENSITY;
-                light_intensity = light_intensity > 1.0 ? 1.0 : light_intensity;
+                double player_light_intensity = 1.0 / curr_ray->wall_distance * PLAYER_LIGHT_INTENSITY;
 
                 for (int y = 0; y < curr_ray->wall_height; y++) {
+                    SURFACE_SIDE wall_side_hit = curr_ray->side_hit == Y_SIDE ?
+                        curr_ray->floor_dir.y > 0.0 ? SURFACE_BACK : SURFACE_FRONT
+                        : curr_ray->floor_dir.x > 0.0 ? SURFACE_LEFT : SURFACE_RIGHT;
+
+                    double light_intensity = player_light_intensity + lightmap_get_lumel_value(walls_light_map, curr_ray->map_cell, (Vec2) { .x = curr_ray->wall_column_hit, .y = texture_v }, wall_side_hit);
+
+                    light_intensity = light_intensity > 1.0 ? 1.0 : light_intensity;
+
                     int texture_y = (int)(texture_v * current_texture->height);
                     texture_v += curr_ray->wall_texture_v_step;
 
@@ -427,6 +506,7 @@ int main(void) {
 
     if (load_texture_result == 1) {
         free_textures();
+        window_destroy(window);
         return load_texture_result;
     }
 
@@ -460,6 +540,24 @@ int main(void) {
         .wall_empty = EMPTY
     };
     RayHit *rays = malloc(sizeof(RayHit) * window_get_width(window));
+
+    /*
+    *
+    * LOAD LIGHTS
+    *
+    */
+
+    int static_lights_count = 0;
+    Light *world_static_lights = NULL;
+
+    get_world_static_lights(&floor_map, &world_static_lights, &static_lights_count, (Vec3) {.z = -0.5});
+    get_world_static_lights(&ceiling_map, &world_static_lights, &static_lights_count, (Vec3) {.z = 0.5});
+    get_world_static_lights(&walls_map, &world_static_lights, &static_lights_count, (Vec3) {});
+
+    floor_light_map = lightmap_create(world_static_lights, static_lights_count, &floor_map, (Vec3) {.z = -1.0}, SURFACE_TOP);
+    ceiling_light_map = lightmap_create(world_static_lights, static_lights_count, &ceiling_map, (Vec3) {.z = 1.0 }, SURFACE_BOTTOM);
+    walls_light_map = lightmap_create(world_static_lights, static_lights_count, &walls_map, (Vec3) {},
+                                      SURFACE_RIGHT | SURFACE_LEFT | SURFACE_FRONT | SURFACE_BACK);
 
     int max_threads = thread_get_num_logical_cpu_cores();
     ThreadData thread_data[max_threads];
@@ -580,7 +678,13 @@ int main(void) {
     }
 
     thread_destroy_atomic_int(running);
+
     free_textures();
+
+    lightmap_free(floor_light_map);
+    lightmap_free(ceiling_light_map);
+    lightmap_free(walls_light_map);
+
     free(rays);
 
     window_destroy(window);
