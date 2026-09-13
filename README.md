@@ -5,8 +5,10 @@ A simple ray caster that tries to draw everything through the CPU even on modern
 
 ## Screenshots
 
-<img width="3425" height="1377" alt="screenshot_2026-09-12_09-19-51" src="https://github.com/user-attachments/assets/d7f5e218-79cd-47e1-87e3-06e45e3fc5ed" />
-<img width="3425" height="1377" alt="screenshot_2026-09-12_09-20-25" src="https://github.com/user-attachments/assets/c9f80c07-5fb4-4e03-bbd5-2dcac31908af" />
+<img width="3425" height="1377" alt="screenshot_2026-09-13_17-21-04" src="https://github.com/user-attachments/assets/222894cb-f77d-443b-addc-7886efa4c1c2" />
+<img width="3425" height="1377" alt="screenshot_2026-09-13_17-21-18" src="https://github.com/user-attachments/assets/f9132a5f-3595-4af2-84e6-102c557d614d" />
+
+
 
 
 ## TODO
