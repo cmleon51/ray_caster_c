@@ -19,6 +19,7 @@ typedef struct {
     double wall_column_hit;
     double wall_distance;
     Vec2 wall_hit_position;
+    Vec2 map_cell;
     int wall_hit;
     SIDE_HIT side_hit;
 

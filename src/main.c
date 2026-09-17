@@ -1,3 +1,4 @@
+#include <linear_algebra/vec3.h>
 #include <platform/utils.h>
 #include <math.h>
 #include <stdlib.h>
@@ -10,6 +11,7 @@
 #include <raycast.h>
 #include <platform/window.h>
 #include <platform/threading.h>
+#include <light.h>
 
 #define PLAYER_LIGHT_INTENSITY 0.2
 
@@ -292,14 +294,9 @@ RGBA map_sample_cell(Map *map, int cell_x, int cell_y, double tile_x, double til
     return texture_get_pixel(texture, tile_x * texture->width, tile_y * texture->height);
 }
 
-typedef struct {
-    double radius;
-    double intensity;
-    Vec2 light_pos;
-} LightSource;
-
-int world_lights_count = 0;
-LightSource *world_light_sources;
+LightMap *floor_light_map;
+LightMap *ceiling_light_map;
+LightMap *walls_light_map;
 
 int light_get_properties(CellType cell, double *radius, double *intensity) {
     switch (cell) {
@@ -312,48 +309,39 @@ int light_get_properties(CellType cell, double *radius, double *intensity) {
     }
 }
 
-void light_get_world_sources(Map *map) {
+void get_world_static_lights(Map *map, Light **static_lights, int *lights_count, Vec3 light_offset) {
     static int light_sources_capacity = 10;
 
-    if (!world_light_sources) {
-        world_light_sources = malloc(sizeof(LightSource) * light_sources_capacity);
-    }
+    if (!(*static_lights))
+        *static_lights = malloc(sizeof(Light) * light_sources_capacity);
 
     for (int x = 0; x < map->width; x++) {
         for (int y = 0; y < map->height; y++) {
-            Vec2 light_pos = {
+            Vec3 light_pos = {
                 .x = (double)x + 0.5,
                 .y = (double)y + 0.5,
+                .z = 0.0
             };
+            vec3_add_vec3(&light_pos, &light_offset);
 
             double radius, intensity;
 
             if (light_get_properties(map_check_intersection(map, x, y), &radius, &intensity)) {
-                world_light_sources[world_lights_count] = (LightSource) {
-                    .light_pos = light_pos,
+                (*static_lights)[*lights_count] = (Light) {
+                    .position = light_pos,
                     .intensity = intensity,
                     .radius = radius
                 };
 
-                world_lights_count++;
+                (*lights_count)++;
             }
 
-            if (world_lights_count == light_sources_capacity) {
+            if (*lights_count == light_sources_capacity) {
                 light_sources_capacity += 10;
-                world_light_sources = realloc(world_light_sources, sizeof(LightSource) * light_sources_capacity);
+                *static_lights = realloc(*static_lights, sizeof(Light) * light_sources_capacity);
             }
         }
     }
-}
-
-double light_get_intensity(double distance, double intensity, double radius) {
-    if (distance >= radius)
-        return 0.0;
-
-    double distance_ratio = distance / radius;
-    double window = 1.0 - pow(distance_ratio, 4.0);
-
-    return intensity * (window * window) / (distance * distance + 1.0);
 }
 
 int render_portion(void *args) {
@@ -407,39 +395,52 @@ int render_portion(void *args) {
                     int cell_x = floor(floor_x);
                     int cell_y = floor(floor_y);
 
-                    double light_intensity = 1.0 / row_distance * PLAYER_LIGHT_INTENSITY;
                     int floor_index = y - floor_start;
 
                     int ceiling_index = window_height - 1 - y;
 
+                    /**
+                     *
+                     * CALCULATE LIGHT INTENSITY THROUGH THE LIGHTMAP
+                     *
+                     */
+                    double light_intensity = 1.0 / row_distance * PLAYER_LIGHT_INTENSITY;
+
+                    int lumel_x = tile_x * LIGHTMAP_RESOLUTION;
+                    int lumel_y = tile_y * LIGHTMAP_RESOLUTION;
+
+                    Lumel *floor_lumel = lightmap_get_lumel(floor_light_map, cell_x, cell_y, SURFACE_TOP);
+                    Lumel *ceiling_lumel = lightmap_get_lumel(ceiling_light_map, cell_x, cell_y, SURFACE_BOTTOM);
+
+                    double floor_light_intensity = light_intensity;
+                    double ceiling_light_intensity = light_intensity;
+
+                    if (floor_lumel)
+                        floor_light_intensity += floor_lumel->lumels[lumel_x][lumel_y];
+                    if (ceiling_lumel)
+                        ceiling_light_intensity += ceiling_lumel->lumels[lumel_x][lumel_y];
+
+                    floor_light_intensity = floor_light_intensity > 1.0 ? 1.0 : floor_light_intensity;
+                    ceiling_light_intensity = ceiling_light_intensity > 1.0 ? 1.0 : ceiling_light_intensity;
+
+                    /**
+                     *
+                     * APPLY FLOOR AND CEILING COLORS
+                     *
+                     */
                     floor_colors[floor_index] =
                         map_sample_cell(data->floor_map, cell_x, cell_y, tile_x, tile_y);
 
-                    for (int i = 0; i < world_lights_count; i++) {
-                        LightSource *current_light = &world_light_sources[i];
-
-                        Vec2 cell_distance_from_light = {
-                            .x = current_light->light_pos.x - floor_x,
-                            .y = current_light->light_pos.y - floor_y,
-                        };
-
-                        double cell_distance = vec2_get_length(&cell_distance_from_light);
-
-                        light_intensity += light_get_intensity(cell_distance, current_light->intensity, current_light->radius);
-                    }
-
-                    light_intensity = light_intensity > 1.0 ? 1.0 : light_intensity;
-
-                    floor_colors[floor_index].r *= light_intensity;
-                    floor_colors[floor_index].g *= light_intensity;
-                    floor_colors[floor_index].b *= light_intensity;
+                    floor_colors[floor_index].r *= floor_light_intensity;
+                    floor_colors[floor_index].g *= floor_light_intensity;
+                    floor_colors[floor_index].b *= floor_light_intensity;
 
                     ceiling_colors[ceiling_index] =
                         map_sample_cell(data->ceiling_map, cell_x, cell_y, tile_x, tile_y);
 
-                    ceiling_colors[ceiling_index].r *= light_intensity;
-                    ceiling_colors[ceiling_index].g *= light_intensity;
-                    ceiling_colors[ceiling_index].b *= light_intensity;
+                    ceiling_colors[ceiling_index].r *= ceiling_light_intensity;
+                    ceiling_colors[ceiling_index].g *= ceiling_light_intensity;
+                    ceiling_colors[ceiling_index].b *= ceiling_light_intensity;
                 }
 
                 window_draw_line(window,
@@ -464,30 +465,29 @@ int render_portion(void *args) {
                 Texture *current_texture = &textures[curr_ray->wall_hit - 1];
 
                 int texture_x = curr_ray->wall_column_hit * current_texture->width;
+                int lumel_x = curr_ray->wall_column_hit * LIGHTMAP_RESOLUTION;
                 double texture_v = curr_ray->wall_texture_v;
 
                 double player_light_intensity = 1.0 / curr_ray->wall_distance * PLAYER_LIGHT_INTENSITY;
 
                 for (int y = 0; y < curr_ray->wall_height; y++) {
-                    int texture_y = (int)(texture_v * current_texture->height);
-
-                    double pixel_height = 1.0 - texture_v;
-                    texture_v += curr_ray->wall_texture_v_step;
-
                     double light_intensity = player_light_intensity;
 
-                    for (int i = 0; i < world_lights_count; i++) {
-                        LightSource *current_light = &world_light_sources[i];
+                    int lumel_y = texture_v * LIGHTMAP_RESOLUTION;
 
-                        double distance_x = current_light->light_pos.x - curr_ray->wall_hit_position.x;
-                        double distance_y = current_light->light_pos.y - curr_ray->wall_hit_position.y;
+                    SURFACE_SIDE wall_side_hit = curr_ray->side_hit == Y_SIDE ?
+                        curr_ray->floor_dir.y > 0.0 ? SURFACE_BACK : SURFACE_FRONT
+                        : curr_ray->floor_dir.x > 0.0 ? SURFACE_LEFT : SURFACE_RIGHT;
 
-                        double wall_distance = sqrt(distance_x * distance_x + distance_y * distance_y + pixel_height * pixel_height);
+                    Lumel *wall_lumel = lightmap_get_lumel(walls_light_map, curr_ray->map_cell.x, curr_ray->map_cell.y, wall_side_hit);
 
-                        light_intensity += light_get_intensity(wall_distance, current_light->intensity, current_light->radius);
-                    }
+                    if (wall_lumel)
+                        light_intensity += wall_lumel->lumels[lumel_x][lumel_y];
 
                     light_intensity = light_intensity > 1.0 ? 1.0 : light_intensity;
+
+                    int texture_y = (int)(texture_v * current_texture->height);
+                    texture_v += curr_ray->wall_texture_v_step;
 
                     wall_colors[y] = texture_get_pixel(current_texture, texture_x, texture_y);
 
@@ -522,6 +522,7 @@ int main(void) {
 
     if (load_texture_result == 1) {
         free_textures();
+        window_destroy(window);
         return load_texture_result;
     }
 
@@ -562,9 +563,17 @@ int main(void) {
     *
     */
 
-    light_get_world_sources(&walls_map);
-    light_get_world_sources(&floor_map);
-    light_get_world_sources(&ceiling_map);
+    int static_lights_count = 0;
+    Light *world_static_lights = NULL;
+
+    get_world_static_lights(&floor_map, &world_static_lights, &static_lights_count, (Vec3) {.z = -0.5});
+    get_world_static_lights(&ceiling_map, &world_static_lights, &static_lights_count, (Vec3) {.z = 0.5});
+    get_world_static_lights(&walls_map, &world_static_lights, &static_lights_count, (Vec3) {});
+
+    floor_light_map = lightmap_create(world_static_lights, static_lights_count, &floor_map, (Vec3) {.z = -1.0}, SURFACE_TOP);
+    ceiling_light_map = lightmap_create(world_static_lights, static_lights_count, &ceiling_map, (Vec3) {.z = 1.0 }, SURFACE_BOTTOM);
+    walls_light_map = lightmap_create(world_static_lights, static_lights_count, &walls_map, (Vec3) {},
+                                      SURFACE_RIGHT | SURFACE_LEFT | SURFACE_FRONT | SURFACE_BACK);
 
     int max_threads = thread_get_num_logical_cpu_cores();
     ThreadData thread_data[max_threads];
@@ -685,8 +694,13 @@ int main(void) {
     }
 
     thread_destroy_atomic_int(running);
-    free(world_light_sources);
+
     free_textures();
+
+    lightmap_free(floor_light_map);
+    lightmap_free(ceiling_light_map);
+    lightmap_free(walls_light_map);
+
     free(rays);
 
     window_destroy(window);

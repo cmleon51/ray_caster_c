@@ -17,9 +17,9 @@ void vec3_add_double(Vec3 *vec, double addition);
 
 void vec3_subtract_double(Vec3 *vec, double subtraction);
 
-void vec3_subtract_vec2(Vec3 *vec, const Vec3 *other);
+void vec3_subtract_vec3(Vec3 *vec, const Vec3 *other);
 
-void vec3_add_vec2(Vec3 *vec, const Vec3 *other);
+void vec3_add_vec3(Vec3 *vec, const Vec3 *other);
 
 void vec3_scale(Vec3 *vec, double scale);
 

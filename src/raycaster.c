@@ -104,6 +104,7 @@ void raycast_walls(Map *walls_map, Map *floor_map, Map *ceiling_map, RayHit *ray
                     .y = ray_start.y + distance * ray_dir.y,
                 },
                 .wall_hit = wall_hit,
+                .map_cell = map_check,
                 .side_hit = side_hit,
                 .floor_dir = {
                     .x = ray_dir.x / perspective_correction,

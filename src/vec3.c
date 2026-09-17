@@ -20,16 +20,16 @@ void vec3_subtract_double(Vec3 *vec, double subtraction) {
     vec->z -= subtraction;
 }
 
-void vec3_subtract_vec3(Vec3 *vec, Vec3 other) {
-    vec->x -= other.x;
-    vec->y -= other.y;
-    vec->z -= other.z;
+void vec3_subtract_vec3(Vec3 *vec, const Vec3 *other) {
+    vec->x -= other->x;
+    vec->y -= other->y;
+    vec->z -= other->z;
 }
 
-void vec3_add_vec3(Vec3 *vec, Vec3 other) {
-    vec->x += other.x;
-    vec->y += other.y;
-    vec->z += other.z;
+void vec3_add_vec3(Vec3 *vec, const Vec3 *other) {
+    vec->x += other->x;
+    vec->y += other->y;
+    vec->z += other->z;
 }
 
 void vec3_scale(Vec3 *vec, double scale) {
