@@ -129,8 +129,8 @@ int window_is_key_pressed(KeyPress key) {
 void window_draw_line(Window *window, Vec2 norm_start, Vec2 norm_end, RGBA *colors, int colors_count) {
     SDL_Surface *window_surface = window->surface;
 
-    Vec2 end = vec2_map_norm_coord(norm_end, window_surface->w, window_surface->h);
-    Vec2 start = vec2_map_norm_coord(norm_start, window_surface->w, window_surface->h);
+    Vec2 end = vec2_map_norm_coord_cp(&norm_end, window_surface->w, window_surface->h);
+    Vec2 start = vec2_map_norm_coord_cp(&norm_start, window_surface->w, window_surface->h);
 
     end = (Vec2) {
         .x = SDL_round(end.x),
@@ -155,7 +155,7 @@ void window_draw_line(Window *window, Vec2 norm_start, Vec2 norm_end, RGBA *colo
     }
 
     Vec2 ray_dir = end;
-    vec2_subtract_vec2(&ray_dir, start);
+    vec2_subtract_vec2(&ray_dir, &start);
 
     double steps = SDL_abs(ray_dir.x) > SDL_abs(ray_dir.y) ? SDL_abs(ray_dir.x) : SDL_abs(ray_dir.y);
 
@@ -250,7 +250,7 @@ void window_draw_text(Window *window, Vec2 norm_pos, const char *font_path,
     formatted_string_len = vsnprintf(formatted_string, size, fmt, ap);
     va_end(ap);
 
-    norm_pos = vec2_map_norm_coord(norm_pos, window->surface->w, window->surface->h);
+    vec2_map_norm_coord(&norm_pos, window->surface->w, window->surface->h);
 
     TTF_Text *text_to_draw = TTF_CreateText(window->text_engine, font_found->loaded_font, formatted_string, 0);
 

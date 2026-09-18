@@ -10,10 +10,10 @@ void player_move(Player *player, Direction direction, double delta_time) {
 
     switch (direction) {
     case FORWARD:
-        vec2_add_vec2(&player->camera.position, look_at_vector);
+        vec2_add_vec2(&player->camera.position, &look_at_vector);
         break;
     case BACKWARDS:
-        vec2_subtract_vec2(&player->camera.position, look_at_vector);
+        vec2_subtract_vec2(&player->camera.position, &look_at_vector);
         break;
     default:
         fprintf(stderr, "The provided direction: %d is not yet implemented in function %s\n",
