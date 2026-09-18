@@ -1,3 +1,4 @@
+#include <linear_algebra/math_utils.h>
 #include <assert.h>
 #include <math.h>
 #include <raycast.h>
@@ -15,7 +16,7 @@ void raycast_walls(Map *walls_map, Map *floor_map, Map *ceiling_map, RayHit *ray
     current_angle += (display_to_fov_ratio * start_column);
 
     for (int x = start_column; x < end_column; x++) {
-        Vec2 ray_start = vec2_map_norm_coord(player->position, walls_map->width, walls_map->height);
+        Vec2 ray_start = vec2_map_norm_coord_cp(&player->position, walls_map->width, walls_map->height);
         Vec2 ray_dir = vec2_from_angle(current_angle);
 
         vec2_normalize(&ray_dir);
