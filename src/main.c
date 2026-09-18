@@ -2,6 +2,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <linear_algebra/vec2.h>
+#include <linear_algebra/math_utils.h>
 #include <map.h>
 #include <player.h>
 #include <camera.h>
@@ -327,7 +328,7 @@ int render_portion(void *args) {
                 RGBA floor_colors[span_count];
                 RGBA ceiling_colors[span_count];
 
-                Vec2 player_pos = vec2_map_norm_coord(data->camera->position, data->walls_map->width, data->walls_map->height);
+                Vec2 player_pos = vec2_map_norm_coord_cp(&data->camera->position, data->walls_map->width, data->walls_map->height);
 
                 for (int y = floor_start; y < window_height; y++) {
                     double row_distance = horizon / (y - horizon);
@@ -522,9 +523,9 @@ int main(void) {
         Vec2 player_look_at = vec2_from_angle(player.camera.look_at);
         vec2_normalize(&player_look_at);
         vec2_scale(&player_look_at, player_wall_collision_distance);
-        vec2_add_vec2(&player_look_at, player.camera.position);
+        vec2_add_vec2(&player_look_at, &player.camera.position);
 
-        Vec2 player_look_at_in_map = vec2_map_norm_coord(player_look_at, walls_map.width, walls_map.height);
+        Vec2 player_look_at_in_map = vec2_map_norm_coord_cp(&player_look_at, walls_map.width, walls_map.height);
 
         if (map_check_intersection(&walls_map, (int)player_look_at_in_map.x, (int)player_look_at_in_map.y) == EMPTY
             && window_is_key_pressed(KEY_W)) {
@@ -534,12 +535,12 @@ int main(void) {
         Vec2 inverted_player_look_at = vec2_from_angle(player.camera.look_at - 180);
         vec2_normalize(&inverted_player_look_at);
         vec2_scale(&inverted_player_look_at, player_wall_collision_distance);
-        vec2_add_vec2(&inverted_player_look_at, player.camera.position);
+        vec2_add_vec2(&inverted_player_look_at, &player.camera.position);
 
-        Vec2 inverted_player_look_at_in_map = vec2_map_norm_coord(inverted_player_look_at, walls_map.width, walls_map.height);
+        vec2_map_norm_coord(&inverted_player_look_at, walls_map.width, walls_map.height);
 
-        if (map_check_intersection(&walls_map, (int)inverted_player_look_at_in_map.x, (int)inverted_player_look_at_in_map.y) == EMPTY
-            && window_is_key_pressed(KEY_S)) {
+        if (map_check_intersection(&walls_map, (int)inverted_player_look_at.x, (int)inverted_player_look_at.y) == EMPTY &&
+            window_is_key_pressed(KEY_S)) {
             player_move(&player, BACKWARDS, delta_time);
         }
 
