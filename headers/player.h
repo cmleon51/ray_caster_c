@@ -2,10 +2,12 @@
 #define PLAYER_H
 
 #include <linear_algebra/vec2.h>
+#include <light.h>
 #include <camera.h>
 
 typedef struct {
     Camera camera;
+    Light light;
     double movement_speed;
     double rotation_speed;
 } Player;

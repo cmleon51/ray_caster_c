@@ -61,6 +61,8 @@ inline double lightmap_get_lumel_value(LightMap *lightmap, const Vec2 map_cell, 
     return 0.0;
 }
 
+double light_get_intensity(const Light *light, const Vec3 world_pos);
+
 LightMap *lightmap_create(Light *static_lights, int lights_count, Map *map, Vec3 cell_offset, SURFACE_SIDE cell_sides);
 
 void lightmap_free(LightMap *lightmap);

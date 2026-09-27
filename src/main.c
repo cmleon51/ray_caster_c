@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <linear_algebra/vec2.h>
 #include <linear_algebra/math_utils.h>
-#include <map.h>
 #include <player.h>
 #include <camera.h>
 #include <textures.h>
@@ -12,8 +11,7 @@
 #include <platform/window.h>
 #include <platform/threading.h>
 #include <light.h>
-
-#define PLAYER_LIGHT_INTENSITY 0.2
+#include <map.h>
 
 #define MAP_SIZE 50
 #define TEXTURE_COUNT 14
@@ -260,7 +258,7 @@ CellType ceiling_map_2d[MAP_SIZE][MAP_SIZE] = {
 typedef struct {
     int thread_nr;
     int max_threads;
-    Camera *camera;
+    Player *player;
     RayHit **rays_arr;
     Map *walls_map;
     Map *floor_map;
@@ -361,7 +359,8 @@ int render_portion(void *args) {
         if (data->thread_nr == data->max_threads - 1)
             column_end = window_width;
 
-        raycast_walls(data->walls_map, data->floor_map, data->ceiling_map, *data->rays_arr, data->camera, column_start, column_end, window_width, window_height);
+        raycast_walls(data->walls_map, data->floor_map, data->ceiling_map, *data->rays_arr,
+                      &data->player->camera, column_start, column_end, window_width, window_height);
 
         for (int x = column_start; x < column_end; x++) {
             RayHit *curr_ray = &(*data->rays_arr)[x];
@@ -381,7 +380,7 @@ int render_portion(void *args) {
                 RGBA floor_colors[span_count];
                 RGBA ceiling_colors[span_count];
 
-                Vec2 player_pos = vec2_map_norm_coord_cp(&data->camera->position, data->walls_map->width, data->walls_map->height);
+                Vec2 player_pos = vec2_map_norm_coord_cp(&data->player->camera.position, data->walls_map->width, data->walls_map->height);
 
                 for (int y = floor_start; y < window_height; y++) {
                     double row_distance = horizon / (y - horizon);
@@ -403,14 +402,12 @@ int render_portion(void *args) {
                      *
                      * CALCULATE LIGHT INTENSITY THROUGH THE LIGHTMAP
                      *
-                     */
-                    double light_intensity = 1.0 / row_distance * PLAYER_LIGHT_INTENSITY;
-
+                    */
                     Vec2 lightmap_cell = (Vec2) { .x = cell_x, .y = cell_y };
                     Vec2 lumel_cell = (Vec2) { .x = tile_x, .y = tile_y };
 
-                    double floor_light_intensity = light_intensity + lightmap_get_lumel_value(floor_light_map, lightmap_cell, lumel_cell, SURFACE_TOP);
-                    double ceiling_light_intensity = light_intensity + lightmap_get_lumel_value(ceiling_light_map, lightmap_cell, lumel_cell, SURFACE_BOTTOM);
+                    double floor_light_intensity = light_get_intensity(&data->player->light, (Vec3) { .x = floor_x, .y = floor_y, .z = -0.5}) + lightmap_get_lumel_value(floor_light_map, lightmap_cell, lumel_cell, SURFACE_TOP);
+                    double ceiling_light_intensity = light_get_intensity(&data->player->light, (Vec3) { .x = floor_x, .y = floor_y, .z = 0.5}) + lightmap_get_lumel_value(ceiling_light_map, lightmap_cell, lumel_cell, SURFACE_BOTTOM);
 
                     floor_light_intensity = floor_light_intensity > 1.0 ? 1.0 : floor_light_intensity;
                     ceiling_light_intensity = ceiling_light_intensity > 1.0 ? 1.0 : ceiling_light_intensity;
@@ -459,9 +456,15 @@ int render_portion(void *args) {
                 int texture_x = curr_ray->wall_column_hit * current_texture->width;
                 double texture_v = curr_ray->wall_texture_v;
 
-                double player_light_intensity = 1.0 / curr_ray->wall_distance * PLAYER_LIGHT_INTENSITY;
+                Vec3 wall_world_position = {
+                    .x = curr_ray->wall_hit_position.x,
+                    .y = curr_ray->wall_hit_position.y,
+                    .z = 0.0
+                };
 
                 for (int y = 0; y < curr_ray->wall_height; y++) {
+                    double player_light_intensity = light_get_intensity(&data->player->light, wall_world_position);
+
                     SURFACE_SIDE wall_side_hit = curr_ray->side_hit == Y_SIDE ?
                         curr_ray->floor_dir.y > 0.0 ? SURFACE_BACK : SURFACE_FRONT
                         : curr_ray->floor_dir.x > 0.0 ? SURFACE_LEFT : SURFACE_RIGHT;
@@ -516,9 +519,16 @@ int main(void) {
             .look_at = 0.0,
             .fov = 90.0,
         },
+        .light = {
+            .position = { .x = 0.5, .y = 0.5, .z = 0.5 },
+            .intensity = 0.5,
+            .radius = 8.0
+        },
         .movement_speed = 0.2,
         .rotation_speed = 200.0
     };
+    vec3_map_norm_coord(&player.light.position, MAP_SIZE, MAP_SIZE, 1);
+
     double player_wall_collision_distance = 0.01;
 
     Map walls_map = {
@@ -573,7 +583,7 @@ int main(void) {
         thread_data[i] = (ThreadData) {
             .thread_nr = i,
             .max_threads = max_threads,
-            .camera = &player.camera,
+            .player = &player,
             .rays_arr = &rays,
             .walls_map = &walls_map,
             .floor_map = &floor_map,
@@ -628,6 +638,7 @@ int main(void) {
         if (map_check_intersection(&walls_map, (int)player_look_at_in_map.x, (int)player_look_at_in_map.y) == EMPTY
             && window_is_key_pressed(KEY_W)) {
             player_move(&player, FORWARD, delta_time);
+            vec3_map_norm_coord(&player.light.position, MAP_SIZE, MAP_SIZE, 1);
         }
 
         Vec2 inverted_player_look_at = vec2_from_angle(player.camera.look_at - 180);
@@ -640,6 +651,7 @@ int main(void) {
         if (map_check_intersection(&walls_map, (int)inverted_player_look_at.x, (int)inverted_player_look_at.y) == EMPTY &&
             window_is_key_pressed(KEY_S)) {
             player_move(&player, BACKWARDS, delta_time);
+            vec3_map_norm_coord(&player.light.position, MAP_SIZE, MAP_SIZE, 1);
         }
 
         if (window_is_key_pressed(KEY_A))

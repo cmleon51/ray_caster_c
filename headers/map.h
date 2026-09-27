@@ -2,7 +2,6 @@
 #define MAP_H
 
 #include <linear_algebra/vec2.h>
-#include <player.h>
 
 typedef int CellType;
 

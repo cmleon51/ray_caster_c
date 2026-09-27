@@ -21,6 +21,9 @@ void player_move(Player *player, Direction direction, double delta_time) {
         exit(EXIT_FAILURE);
         break;
     };
+
+    player->light.position.x = player->camera.position.x;
+    player->light.position.y = player->camera.position.y;
 }
 
 void player_rotate(Player *player, Direction direction, double delta_time) {

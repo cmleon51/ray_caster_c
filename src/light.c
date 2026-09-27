@@ -4,8 +4,18 @@
 #include <math.h>
 #include <stdlib.h>
 
-double light_get_intensity(const Light *light, const Vec3 lumel_pos) {
-    Vec3 lumel_light = vec3_subtract_vec3_cp(&lumel_pos, &light->position);
+double light_get_intensity(const Light *light, const Vec3 world_pos) {
+    Vec3 lumel_light = vec3_subtract_vec3_cp(&world_pos, &light->position);
+    double lumel_light_distance = vec3_get_length(&lumel_light);
+
+    if (lumel_light_distance >= light->radius)
+        return 0.0;
+
+    return light->intensity / (lumel_light_distance * lumel_light_distance + 1.0);
+}
+
+double light_static_get_intensity(const Light *light, const Vec3 world_pos) {
+    Vec3 lumel_light = vec3_subtract_vec3_cp(&world_pos, &light->position);
     double lumel_light_distance = vec3_get_length(&lumel_light);
 
     if (lumel_light_distance >= light->radius)
@@ -133,37 +143,37 @@ LightMap *lightmap_create(Light *static_lights, int lights_count, Map *map, Vec3
 
                         if (cell_sides & SURFACE_FRONT) {
                             current_lumel->side = SURFACE_FRONT;
-                            current_lumel->lumels[i][j] += light_get_intensity(current_light, surface_front_lumel);
+                            current_lumel->lumels[i][j] += light_static_get_intensity(current_light, surface_front_lumel);
                             current_lumel++;
                         }
 
                         if (cell_sides & SURFACE_BACK) {
                             current_lumel->side = SURFACE_BACK;
-                            current_lumel->lumels[i][j] += light_get_intensity(current_light, surface_back_lumel);
+                            current_lumel->lumels[i][j] += light_static_get_intensity(current_light, surface_back_lumel);
                             current_lumel++;
                         }
 
                         if (cell_sides & SURFACE_RIGHT) {
                             current_lumel->side = SURFACE_RIGHT;
-                            current_lumel->lumels[i][j] += light_get_intensity(current_light, surface_right_lumel);
+                            current_lumel->lumels[i][j] += light_static_get_intensity(current_light, surface_right_lumel);
                             current_lumel++;
                         }
 
                         if (cell_sides & SURFACE_LEFT) {
                             current_lumel->side = SURFACE_LEFT;
-                            current_lumel->lumels[i][j] += light_get_intensity(current_light, surface_left_lumel);
+                            current_lumel->lumels[i][j] += light_static_get_intensity(current_light, surface_left_lumel);
                             current_lumel++;
                         }
 
                         if (cell_sides & SURFACE_TOP) {
                             current_lumel->side = SURFACE_TOP;
-                            current_lumel->lumels[i][j] += light_get_intensity(current_light, surface_up_lumel);
+                            current_lumel->lumels[i][j] += light_static_get_intensity(current_light, surface_up_lumel);
                             current_lumel++;
                         }
 
                         if (cell_sides & SURFACE_BOTTOM) {
                             current_lumel->side = SURFACE_BOTTOM;
-                            current_lumel->lumels[i][j] += light_get_intensity(current_light, surface_down_lumel);
+                            current_lumel->lumels[i][j] += light_static_get_intensity(current_light, surface_down_lumel);
                             current_lumel++;
                         }
 
