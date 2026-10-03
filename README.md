@@ -5,8 +5,8 @@ A simple ray caster that tries to draw everything through the CPU even on modern
 
 ## Screenshots
 
-<img width="3440" height="1440" alt="screenshot_2026-09-27_18-50-50" src="https://github.com/user-attachments/assets/4fb2adea-8b29-4988-b714-f2e951a270e0" />
-<img width="3440" height="1440" alt="screenshot_2026-09-27_18-50-58" src="https://github.com/user-attachments/assets/9e3b4882-186d-46d5-b2fc-7647ee08847d" />
+<img width="3440" height="1440" alt="screenshot_2026-10-03_17-41-52" src="https://github.com/user-attachments/assets/a8189fea-51b4-4f29-9ed9-ff8c17fb0f65" />
+<img width="3440" height="1440" alt="screenshot_2026-10-03_17-41-59" src="https://github.com/user-attachments/assets/c16811a3-67f2-4b44-888f-cac1298a939d" />
 <img width="3440" height="1440" alt="screenshot_2026-09-27_18-51-09" src="https://github.com/user-attachments/assets/f336e673-8cba-4c72-82a2-22da9c2c1032" />
 
 
@@ -14,7 +14,7 @@ A simple ray caster that tries to draw everything through the CPU even on modern
 
 Since this program still has a long way to go this is the roadmap for now:
 - [X] implement ceiling and ground rendering
-- [ ] implement sprite rendering
+- [X] implement sprite rendering
 - [X] dynamic lights
 - [X] static lights
 - [ ] cpu only rendering with platform-agnostic compilation
