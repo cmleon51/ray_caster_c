@@ -40,4 +40,9 @@ void player_rotate(Player *player, Direction direction, double delta_time) {
         exit(EXIT_FAILURE);
         break;
     }
+
+    if (player->camera.look_at < 0.0)
+        player->camera.look_at += 360.0;
+    else if (player->camera.look_at > 360.0)
+        player->camera.look_at -= 360.0;
 }

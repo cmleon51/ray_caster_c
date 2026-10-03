@@ -12,9 +12,10 @@
 #include <platform/threading.h>
 #include <light.h>
 #include <map.h>
+#include <sprite.h>
 
 #define MAP_SIZE 50
-#define TEXTURE_COUNT 14
+#define TEXTURE_COUNT 19
 
 Texture *textures;
 
@@ -33,7 +34,16 @@ const char *texture_paths[TEXTURE_COUNT] = {
     "./assets/textures/floor_ship.png",
     "./assets/textures/floor_desert.png",
     "./assets/textures/ceiling.png",
+
+    "./assets/sprites/sword_in_rock.png",
+    "./assets/sprites/lamp.png",
+    "./assets/sprites/glass_ball.png",
+    "./assets/sprites/chain_short.png",
+    "./assets/sprites/chain_long.png",
 };
+
+#define SPRITES_COUNT 16
+Sprite sprites[SPRITES_COUNT];
 
 int load_textures() {
     textures = malloc(sizeof(Texture) * TEXTURE_COUNT);
@@ -47,6 +57,24 @@ int load_textures() {
             return 1;
         }
     }
+
+    sprites[0] = (Sprite) { .position = {.x = 0.7, .y = 0.5 }, .texture = &textures[15] };
+    sprites[1] = (Sprite) { .position = {.x = 0.8, .y = 0.5 }, .texture = &textures[16] };
+
+    sprites[2]  = (Sprite) { .position = {.x = 0.770569, .y = 0.144486 }, .texture = &textures[17] };
+    sprites[3]  = (Sprite) { .position = {.x = 0.768588, .y = 0.153164 }, .texture = &textures[18] };
+    sprites[4]  = (Sprite) { .position = {.x = 0.763039, .y = 0.160123 }, .texture = &textures[17] };
+    sprites[5]  = (Sprite) { .position = {.x = 0.755019, .y = 0.163985 }, .texture = &textures[18] };
+    sprites[6]  = (Sprite) { .position = {.x = 0.746119, .y = 0.163985 }, .texture = &textures[17] };
+    sprites[7]  = (Sprite) { .position = {.x = 0.738099, .y = 0.160123 }, .texture = &textures[18] };
+    sprites[8]  = (Sprite) { .position = {.x = 0.732550, .y = 0.153164 }, .texture = &textures[17] };
+    sprites[9]  = (Sprite) { .position = {.x = 0.730569, .y = 0.144486 }, .texture = &textures[18] };
+    sprites[10] = (Sprite) { .position = {.x = 0.732550, .y = 0.135808 }, .texture = &textures[17] };
+    sprites[11] = (Sprite) { .position = {.x = 0.738099, .y = 0.128849 }, .texture = &textures[18] };
+    sprites[12] = (Sprite) { .position = {.x = 0.746119, .y = 0.124987 }, .texture = &textures[17] };
+    sprites[13] = (Sprite) { .position = {.x = 0.755019, .y = 0.124987 }, .texture = &textures[18] };
+    sprites[14] = (Sprite) { .position = {.x = 0.763039, .y = 0.128849 }, .texture = &textures[17] };
+    sprites[15] = (Sprite) { .position = {.x = 0.768588, .y = 0.135808 }, .texture = &textures[18] };
 
     return 0;
 }
@@ -260,6 +288,7 @@ typedef struct {
     int max_threads;
     Player *player;
     RayHit **rays_arr;
+    double **z_buffer;
     Map *walls_map;
     Map *floor_map;
     Map *ceiling_map;
@@ -447,7 +476,7 @@ int render_portion(void *args) {
              *
              * WALL DRAWING
              *
-             * */
+            */
 
             if (curr_ray->wall_height > 0) {
                 RGBA wall_colors[curr_ray->wall_height];
@@ -488,6 +517,8 @@ int render_portion(void *args) {
                     wall_colors[y].g *= light_intensity;
                     wall_colors[y].b *= light_intensity;
                 }
+
+                (*data->z_buffer)[x] = curr_ray->wall_distance;
 
                 window_draw_line(window,
                     window_norm_point(window, x, curr_ray->wall_top),
@@ -573,6 +604,7 @@ int main(void) {
     ThreadData thread_data[max_threads];
     Thread threads[max_threads];
     AtomicInt running = thread_create_atomic_int();
+    double *z_buffer = calloc(window_get_width(window), sizeof(double));
 
     thread_set_atomic_int(running, 1);
 
@@ -592,6 +624,7 @@ int main(void) {
             .running = running,
             .start = start_semaphore,
             .finished = finished_semaphore,
+            .z_buffer = &z_buffer,
         };
 
         threads[i] = thread_create(render_portion, "thread", &thread_data[i]);
@@ -615,6 +648,8 @@ int main(void) {
 
         while ((event = window_poll_event(window)) != EVENT_NONE) {
             switch (event) {
+            case EVENT_NONE:
+                break;
             case EVENT_QUIT_APP:
                     window_close(window);
                 break;
@@ -623,6 +658,9 @@ int main(void) {
                     return 1;
                 }
 
+                int window_width = window_get_width(window);
+
+                z_buffer = realloc(z_buffer, sizeof(double) * window_width);
                 rays = realloc(rays, sizeof(RayHit) * window_get_width(window));
                 break;
             }
@@ -669,6 +707,18 @@ int main(void) {
             thread_wait_semaphore(thread_data[i].finished);
         }
 
+        /**
+         *
+         * DRAW SPRITES
+         *
+        */
+
+        sprite_sort(sprites, SPRITES_COUNT, &player.camera);
+
+        for (int i = 0; i < SPRITES_COUNT; i++) {
+            sprite_render(&sprites[i], &player.camera, window, MAP_SIZE, MAP_SIZE, z_buffer);
+        }
+
         window_draw_text(window, (Vec2) {.x = 0.01, .y = 0.01}, "./assets/fonts/default.ttf", 30.0, "FPS: %f", 1.0 / fps_count);
 
         window_flip(window);
@@ -698,6 +748,7 @@ int main(void) {
     lightmap_free(walls_light_map);
 
     free(rays);
+    free(z_buffer);
 
     window_destroy(window);
 

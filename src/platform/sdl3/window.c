@@ -179,14 +179,16 @@ void window_draw_line(Window *window, Vec2 norm_start, Vec2 norm_end, RGBA *colo
 
         RGBA *current_color = &colors[current_color_index];
 
-        if (current_color->r != prev_color->r || current_color->g != prev_color->g ||
-            current_color->b != prev_color->b || current_color->a != prev_color->a) {
-            pixel = SDL_MapRGBA(format, NULL, current_color->r, current_color->g, current_color->b, current_color->a);
-            prev_color = current_color;
-        }
+        if (current_color->a != 0x00) {
+            if (current_color->r != prev_color->r || current_color->g != prev_color->g ||
+                current_color->b != prev_color->b || current_color->a != prev_color->a) {
+                pixel = SDL_MapRGBA(format, NULL, current_color->r, current_color->g, current_color->b, current_color->a);
+                prev_color = current_color;
+            }
 
-        Uint8 *dst = (Uint8 *)window_surface->pixels + y * window_surface->pitch + x * bpp;
-        SDL_memcpy(dst, &pixel, bpp);
+            Uint8 *dst = (Uint8 *)window_surface->pixels + y * window_surface->pitch + x * bpp;
+            SDL_memcpy(dst, &pixel, bpp);
+        }
 
         start.x += x_inc;
         start.y += y_inc;
