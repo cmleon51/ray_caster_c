@@ -30,7 +30,6 @@ struct Window {
 };
 
 Window *window_create() {
-    Window *window = (Window *)calloc(1, sizeof(Window));
     SDL_SetAppMetadata("Ray Caster", "1.0", "com.ray_caster");
 
     if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -43,15 +42,18 @@ Window *window_create() {
         return NULL;
     }
 
-    window->window =
+    SDL_Window *sdl_window =
         SDL_CreateWindow("Ray Caster", 0, 0,
                          SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 
-    if (!window) {
+    if (!sdl_window) {
         SDL_Log("Couldn't create the application's window");
         return NULL;
     }
 
+    Window *window = (Window *)calloc(1, sizeof(Window));
+
+    window->window = sdl_window;
     window->surface = SDL_GetWindowSurface(window->window);
     window->text_engine = TTF_CreateSurfaceTextEngine();
 
