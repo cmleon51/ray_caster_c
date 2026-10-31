@@ -4,7 +4,6 @@
 #include <stdlib.h>
 
 void sprite_sort(Sprite *sprites_array, int sprites_count, Camera *camera) {
-    // sort sprites by distance from player
     for (int i = 0; i < sprites_count; i++) {
         Sprite *sprite_i = &sprites_array[i];
         Vec2 player_to_sprite_i = vec2_subtract_vec2_cp(&sprite_i->position, &camera->position);

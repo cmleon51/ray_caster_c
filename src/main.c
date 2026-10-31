@@ -16,6 +16,7 @@
 
 #define MAP_SIZE 50
 #define TEXTURE_COUNT 19
+#define PLAYER_WALL_COLLISION_DISTANCE 0.01
 
 Texture *textures;
 
@@ -292,6 +293,9 @@ typedef struct {
     Map *walls_map;
     Map *floor_map;
     Map *ceiling_map;
+    LightMap *floor_light_map;
+    LightMap *ceiling_light_map;
+    LightMap *walls_light_map;
     Window *game_window;
     AtomicInt running;
     Semaphore start;
@@ -320,10 +324,6 @@ RGBA map_sample_cell(Map *map, int cell_x, int cell_y, double tile_x, double til
 
     return texture_get_pixel(texture, tile_x * texture->width, tile_y * texture->height);
 }
-
-LightMap *floor_light_map;
-LightMap *ceiling_light_map;
-LightMap *walls_light_map;
 
 int light_get_properties(CellType cell, double *radius, double *intensity) {
     switch (cell) {
@@ -435,8 +435,8 @@ int render_portion(void *args) {
                     Vec2 lightmap_cell = (Vec2) { .x = cell_x, .y = cell_y };
                     Vec2 lumel_cell = (Vec2) { .x = tile_x, .y = tile_y };
 
-                    double floor_light_intensity = light_get_intensity(&data->player->light, (Vec3) { .x = floor_x, .y = floor_y, .z = -0.5}) + lightmap_get_lumel_value(floor_light_map, lightmap_cell, lumel_cell, SURFACE_TOP);
-                    double ceiling_light_intensity = light_get_intensity(&data->player->light, (Vec3) { .x = floor_x, .y = floor_y, .z = 0.5}) + lightmap_get_lumel_value(ceiling_light_map, lightmap_cell, lumel_cell, SURFACE_BOTTOM);
+                    double floor_light_intensity = light_get_intensity(&data->player->light, (Vec3) { .x = floor_x, .y = floor_y, .z = -0.5}) + lightmap_get_lumel_value(data->floor_light_map, lightmap_cell, lumel_cell, SURFACE_TOP);
+                    double ceiling_light_intensity = light_get_intensity(&data->player->light, (Vec3) { .x = floor_x, .y = floor_y, .z = 0.5}) + lightmap_get_lumel_value(data->ceiling_light_map, lightmap_cell, lumel_cell, SURFACE_BOTTOM);
 
                     floor_light_intensity = floor_light_intensity > 1.0 ? 1.0 : floor_light_intensity;
                     ceiling_light_intensity = ceiling_light_intensity > 1.0 ? 1.0 : ceiling_light_intensity;
@@ -498,7 +498,7 @@ int render_portion(void *args) {
                         curr_ray->floor_dir.y > 0.0 ? SURFACE_BACK : SURFACE_FRONT
                         : curr_ray->floor_dir.x > 0.0 ? SURFACE_LEFT : SURFACE_RIGHT;
 
-                    double light_intensity = player_light_intensity + lightmap_get_lumel_value(walls_light_map, curr_ray->map_cell, (Vec2) { .x = curr_ray->wall_column_hit, .y = texture_v }, wall_side_hit);
+                    double light_intensity = player_light_intensity + lightmap_get_lumel_value(data->walls_light_map, curr_ray->map_cell, (Vec2) { .x = curr_ray->wall_column_hit, .y = texture_v }, wall_side_hit);
 
                     light_intensity = light_intensity > 1.0 ? 1.0 : light_intensity;
 
@@ -534,17 +534,55 @@ int render_portion(void *args) {
 }
 
 int main(void) {
+    int result = 0;
+
+    /**
+     *
+     * THREAD VARIABLES
+     *
+    */
+
+    int max_threads = thread_get_num_logical_cpu_cores();
+    Thread threads[max_threads] = {};
+    ThreadData thread_data[max_threads] = {};
+    AtomicInt running = NULL;
+
+    /**
+     *
+     * GAME VARIABLES
+     *
+    */
+
+
+    int static_lights_count = 0;
+    Light *world_static_lights = NULL;
+    LightMap *floor_light_map = NULL;
+    LightMap *ceiling_light_map = NULL;
+    LightMap *walls_light_map = NULL;
+
+    double *z_buffer = NULL;
+    RayHit *rays = NULL;
+    Player player = {};
+
+    Map walls_map = {};
+    Map floor_map = {};
+    Map ceiling_map = {};
+
+    Event event = EVENT_NONE;
+
+    NsTime time_start_loop = 0;
+    NsTime prev_time_start_loop = 0;
+    NsTime time_end_loop = 0;
+    double delta_time = 0.0;
+    double fps_count = 0.0;
+
     Window *window = window_create();
 
-    int load_texture_result = load_textures();
-
-    if (load_texture_result == 1) {
-        free_textures();
-        window_destroy(window);
-        return load_texture_result;
+    if ((result = load_textures()) != 0) {
+        goto cleanup;
     }
 
-    Player player = {
+    player = (Player){
         .camera = {
             {.x = 0.5, .y = 0.5},
             .look_at = 0.0,
@@ -560,36 +598,25 @@ int main(void) {
     };
     vec3_map_norm_coord(&player.light.position, MAP_SIZE, MAP_SIZE, 1);
 
-    double player_wall_collision_distance = 0.01;
-
-    Map walls_map = {
+    walls_map = (Map){
         .width = MAP_SIZE,
         .height = MAP_SIZE,
         .map_2d = &map_2d[0][0],
         .wall_empty = EMPTY
     };
-    Map floor_map = {
+    floor_map = (Map){
         .width = MAP_SIZE,
         .height = MAP_SIZE,
         .map_2d = &floor_map_2d[0][0],
         .wall_empty = EMPTY
     };
-    Map ceiling_map = {
+    ceiling_map = (Map){
         .width = MAP_SIZE,
         .height = MAP_SIZE,
         .map_2d = &ceiling_map_2d[0][0],
         .wall_empty = EMPTY
     };
-    RayHit *rays = malloc(sizeof(RayHit) * window_get_width(window));
-
-    /*
-    *
-    * LOAD LIGHTS
-    *
-    */
-
-    int static_lights_count = 0;
-    Light *world_static_lights = NULL;
+    rays = malloc(sizeof(RayHit) * window_get_width(window));
 
     get_world_static_lights(&floor_map, &world_static_lights, &static_lights_count, (Vec3) {.z = -0.5});
     get_world_static_lights(&ceiling_map, &world_static_lights, &static_lights_count, (Vec3) {.z = 0.5});
@@ -600,43 +627,32 @@ int main(void) {
     walls_light_map = lightmap_create(world_static_lights, static_lights_count, &walls_map, (Vec3) {},
                                       SURFACE_RIGHT | SURFACE_LEFT | SURFACE_FRONT | SURFACE_BACK);
 
-    int max_threads = thread_get_num_logical_cpu_cores();
-    ThreadData thread_data[max_threads];
-    Thread threads[max_threads];
-    AtomicInt running = thread_create_atomic_int();
-    double *z_buffer = calloc(window_get_width(window), sizeof(double));
+    z_buffer = calloc(window_get_width(window), sizeof(double));
 
+    running = thread_create_atomic_int();
     thread_set_atomic_int(running, 1);
 
     for (int i = 0; i < max_threads; i++) {
-        Semaphore start_semaphore = thread_create_semaphore(0);
-        Semaphore finished_semaphore = thread_create_semaphore(0);
-
         thread_data[i] = (ThreadData) {
             .thread_nr = i,
             .max_threads = max_threads,
             .player = &player,
             .rays_arr = &rays,
             .walls_map = &walls_map,
+            .walls_light_map = walls_light_map,
             .floor_map = &floor_map,
+            .floor_light_map = floor_light_map,
             .ceiling_map = &ceiling_map,
+            .ceiling_light_map = ceiling_light_map,
             .game_window = window,
             .running = running,
-            .start = start_semaphore,
-            .finished = finished_semaphore,
+            .start = thread_create_semaphore(0),
+            .finished = thread_create_semaphore(0),
             .z_buffer = &z_buffer,
         };
 
         threads[i] = thread_create(render_portion, "thread", &thread_data[i]);
     }
-
-    Event event;
-
-    NsTime time_start_loop = 0;
-    NsTime prev_time_start_loop = 0;
-    NsTime time_end_loop = 0;
-    double delta_time = 0.0;
-    double fps_count = 0.0;
 
     while (!window_should_quit(window)) {
         fps_count = NS_TO_S(time_end_loop - time_start_loop);
@@ -654,8 +670,8 @@ int main(void) {
                     window_close(window);
                 break;
             case EVENT_WINDOW_RESIZED:
-                if (window_resize(window)) {
-                    return 1;
+                if ((result = window_resize(window)) != 0) {
+                    goto cleanup;
                 }
 
                 int window_width = window_get_width(window);
@@ -668,7 +684,7 @@ int main(void) {
 
         Vec2 player_look_at = vec2_from_angle(player.camera.look_at);
         vec2_normalize(&player_look_at);
-        vec2_scale(&player_look_at, player_wall_collision_distance);
+        vec2_scale(&player_look_at, PLAYER_WALL_COLLISION_DISTANCE);
         vec2_add_vec2(&player_look_at, &player.camera.position);
 
         Vec2 player_look_at_in_map = vec2_map_norm_coord_cp(&player_look_at, walls_map.width, walls_map.height);
@@ -681,7 +697,7 @@ int main(void) {
 
         Vec2 inverted_player_look_at = vec2_from_angle(player.camera.look_at - 180);
         vec2_normalize(&inverted_player_look_at);
-        vec2_scale(&inverted_player_look_at, player_wall_collision_distance);
+        vec2_scale(&inverted_player_look_at, PLAYER_WALL_COLLISION_DISTANCE);
         vec2_add_vec2(&inverted_player_look_at, &player.camera.position);
 
         vec2_map_norm_coord(&inverted_player_look_at, walls_map.width, walls_map.height);
@@ -697,6 +713,12 @@ int main(void) {
         if (window_is_key_pressed(KEY_D))
             player_rotate(&player, RIGHT, delta_time);
 
+        /**
+         *
+         * RENDER SCENE 
+         *
+        */
+
         window_clear_surface(window);
 
         for (int i = 0; i < max_threads; i++) {
@@ -706,12 +728,6 @@ int main(void) {
         for (int i = 0; i < max_threads; i++) {
             thread_wait_semaphore(thread_data[i].finished);
         }
-
-        /**
-         *
-         * DRAW SPRITES
-         *
-        */
 
         sprite_sort(sprites, SPRITES_COUNT, &player.camera);
 
@@ -726,31 +742,41 @@ int main(void) {
         time_end_loop = utils_get_current_time_ns();
     }
 
-    thread_set_atomic_int(running, 0);
+cleanup:
+    if (running != NULL) {
+        thread_set_atomic_int(running, 0);
 
-    for (int i = 0; i < max_threads; i++) {
-        thread_signal_semaphore(thread_data[i].start);
+        for (int i = 0; i < max_threads; i++) {
+            thread_signal_semaphore(thread_data[i].start);
+        }
+
+        for (int i = 0; i < max_threads; i++) {
+            thread_wait(threads[i]);
+
+            thread_destroy_semaphore(thread_data[i].start);
+            thread_destroy_semaphore(thread_data[i].finished);
+        }
+
+        thread_destroy_atomic_int(running);
     }
 
-    for (int i = 0; i < max_threads; i++) {
-        thread_wait(threads[i]);
+    if (textures)
+        free_textures();
 
-        thread_destroy_semaphore(thread_data[i].start);
-        thread_destroy_semaphore(thread_data[i].finished);
-    }
+    if (floor_light_map)
+        lightmap_free(floor_light_map);
+    if (ceiling_light_map)
+        lightmap_free(ceiling_light_map);
+    if (walls_light_map)
+        lightmap_free(walls_light_map);
 
-    thread_destroy_atomic_int(running);
+    if (rays)
+        free(rays);
+    if (z_buffer)
+        free(z_buffer);
 
-    free_textures();
+    if (window)
+        window_destroy(window);
 
-    lightmap_free(floor_light_map);
-    lightmap_free(ceiling_light_map);
-    lightmap_free(walls_light_map);
-
-    free(rays);
-    free(z_buffer);
-
-    window_destroy(window);
-
-    return 0;
+    return result;
 }
