@@ -100,6 +100,12 @@ Event window_poll_event(Window *window) {
             case SDL_EVENT_WINDOW_RESIZED:
                 return EVENT_WINDOW_RESIZED;
                 break;
+            case SDL_EVENT_KEY_DOWN:
+                if (!window->event.key.repeat && window->event.key.scancode == SDL_SCANCODE_LEFT)
+                    return EVENT_KEY_LEFT;
+                if (!window->event.key.repeat && window->event.key.scancode == SDL_SCANCODE_RIGHT)
+                    return EVENT_KEY_RIGHT;
+                break;
         }
     }
 

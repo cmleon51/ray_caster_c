@@ -42,6 +42,7 @@
 #define PIXELS_PER_CELL 2
 #define BLOCK_GLYPH "\xE2\x96\x80"
 
+#define KITTY_KEY_PRESS 1
 #define KITTY_KEY_RELEASE 3
 #define KITTY_MOD_CTRL 4
 
@@ -111,6 +112,8 @@ static struct {
 
     int key_down[KEY_COUNT];
     NsTime key_deadline[KEY_COUNT];
+    int arrow_left_pressed;
+    int arrow_right_pressed;
     int quit_requested;
 } term;
 
@@ -186,7 +189,7 @@ static void handle_plain_byte(unsigned char byte) {
 static void handle_kitty_key(const char *sequence) {
     int code = atoi(sequence);
     int modifiers = 1;
-    int event_type = 1;
+    int event_type = KITTY_KEY_PRESS;
 
     const char *parameter = strchr(sequence, ';');
 
@@ -208,6 +211,13 @@ static void handle_kitty_key(const char *sequence) {
 
     if (is_press && (code == 'q' || (code == 'c' && ((modifiers - 1) & KITTY_MOD_CTRL))))
         term.quit_requested = 1;
+}
+
+static void handle_arrow(char final_byte) {
+    if (final_byte == 'D')
+        term.arrow_left_pressed = 1;
+    else if (final_byte == 'C')
+        term.arrow_right_pressed = 1;
 }
 
 static void handle_csi(char final_byte) {
@@ -243,6 +253,15 @@ static void handle_csi(char final_byte) {
             else
                 handle_kitty_key(sequence);
             break;
+        case 'C':
+        case 'D': {
+            // CSI 1 ; modifiers:event C, or a plain CSI C without the kitty protocol
+            const char *event_type = strchr(sequence, ':');
+
+            if (!event_type || atoi(event_type + 1) == KITTY_KEY_PRESS)
+                handle_arrow(final_byte);
+            break;
+        }
         case 'O':
             if (term.sequence_len == 0) {
                 memset(term.key_down, 0, sizeof(term.key_down));
@@ -357,6 +376,7 @@ static void parse_byte(unsigned char byte) {
             break;
         case PARSE_SS3:
             term.parse_state = PARSE_GROUND;
+            handle_arrow((char)byte);
             break;
         case PARSE_CSI:
             if (byte == 0x1b) {
@@ -569,6 +589,8 @@ Window *window_create() {
     int cols = term.cols;
 
     term.quit_requested = 0;
+    term.arrow_left_pressed = 0;
+    term.arrow_right_pressed = 0;
     memset(term.key_deadline, 0, sizeof(term.key_deadline));
 
     if (!truecolor) {
@@ -768,6 +790,16 @@ Event window_poll_event(Window *window) {
         quit_signal = 0;
 
         return EVENT_QUIT_APP;
+    }
+
+    if (term.arrow_left_pressed) {
+        term.arrow_left_pressed = 0;
+        return EVENT_KEY_LEFT;
+    }
+
+    if (term.arrow_right_pressed) {
+        term.arrow_right_pressed = 0;
+        return EVENT_KEY_RIGHT;
     }
 
     NsTime now = utils_get_current_time_ns();

@@ -17,7 +17,9 @@ typedef struct {
 typedef enum {
     EVENT_NONE,
     EVENT_QUIT_APP,
-    EVENT_WINDOW_RESIZED
+    EVENT_WINDOW_RESIZED,
+    EVENT_KEY_LEFT,
+    EVENT_KEY_RIGHT
 } Event;
 
 typedef enum {

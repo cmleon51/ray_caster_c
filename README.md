@@ -28,6 +28,28 @@ For now the available targets are the following:
   - SDL3 => needs SDL3 and SDL3_ttf
   - terminal => needs a POSIX system and a terminal that confirms truecolor support
 
+## Levels
+
+On start the application loads `./levels/01.json`, `./levels/02.json` and so on until a number is missing, and stops with an error if a level is invalid. The left and right arrow keys switch between the levels.
+
+```json
+{
+  "size": 16,
+  "player": { "x": 0.2, "y": 0.5, "look_at": 0.0 },
+  "textures": ["./assets/textures/wall_ship_3.png", "./assets/sprites/lamp.png"],
+  "light_textures": [{ "texture": 1, "radius": 6.0, "intensity": 0.7 }],
+  "sprites": [{ "x": 0.35, "y": 0.35, "texture": 2 }],
+  "walls": [[1, 1, 1, "..."], "..."],
+  "floor": [[1, 1, 1, "..."], "..."],
+  "ceiling": [[1, 1, 1, "..."], "..."]
+}
+```
+
+  - maps are square, with `size` rows of `size` cells, and every cell on the outer border of `walls` has to be a wall
+  - cells and sprites use the position of a texture in `textures` starting from 1, and 0 means empty
+  - cells using a texture listed in `light_textures` emit light
+  - positions go from 0.0 to 1.0 across the map
+
 ## Build
 
 Without specifying a `BACKEND` the compilation will select from a list of targets and pick the first working solution:
