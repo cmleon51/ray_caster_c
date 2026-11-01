@@ -9,8 +9,9 @@ OBJDIR := obj
 ALL_BACKENDS := $(notdir $(wildcard $(SRCDIR)/platform/*))
 
 PROBE_sdl3 := pkg-config --exists sdl3 || command -v sdl3-config
+PROBE_terminal := true
 
-BACKEND_PREFERENCE := sdl3
+BACKEND_PREFERENCE := sdl3 terminal
 ORDERED_BACKENDS := $(filter $(ALL_BACKENDS),$(BACKEND_PREFERENCE)) \
                     $(filter-out $(BACKEND_PREFERENCE),$(ALL_BACKENDS))
 
@@ -55,6 +56,11 @@ ifeq ($(BACKEND),sdl3)
         $(error BACKEND=sdl3 needs SDL3_ttf for text rendering, but \
 `pkg-config --exists sdl3-ttf` failed; install the SDL3_ttf development files)
     endif
+endif
+
+ifeq ($(BACKEND),terminal)
+    BACKEND_CFLAGS := -pthread -D_POSIX_C_SOURCE=200809L
+    BACKEND_LIBS := -pthread
 endif
 
 CFLAGS += $(BACKEND_CFLAGS)

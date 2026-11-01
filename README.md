@@ -25,7 +25,8 @@ Since this program still has a long way to go this is the roadmap for now:
 
 Depends on the compilation target.
 For now the available targets are the following:
-  - SDL3 => needs SDL3
+  - SDL3 => needs SDL3 and SDL3_ttf
+  - terminal => needs a POSIX system and a terminal that confirms truecolor support
 
 ## Build
 
@@ -41,9 +42,12 @@ $ BACKEND=sdl3 make
 $ ./ray_caster
 ```
 
+Run `make clean` when switching between targets.
+
 ## AI Usage
 AI has been used in the development of this project.
 Precisely AI has been used for the following:
   - understanding the math needed for the ray-casting algorithm
   - monitoring the performance bottlenecks of the application
   - Write the `Makefile` needed to compile the project
+  - Write the `terminal` platform backend
