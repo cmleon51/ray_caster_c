@@ -302,6 +302,19 @@ typedef struct {
     Semaphore finished;
 } ThreadData;
 
+typedef struct {
+    Light *static_lights;
+    int static_lights_count;
+    Map *walls_map;
+    Map *floor_map;
+    Map *ceiling_map;
+    LightMap *walls_light_map;
+    LightMap *floor_light_map;
+    LightMap *ceiling_light_map;
+    AtomicInt cancel;
+    AtomicInt finished;
+} LightmapLoad;
+
 Vec2 window_norm_point(Window *window, int x, int y) {
     return (Vec2) {
         .x = (double)x / window_get_width(window),
@@ -376,6 +389,9 @@ int render_portion(void *args) {
 
     while (thread_get_atomic_int(data->running)) {
         thread_wait_semaphore(data->start);
+
+        if (!thread_get_atomic_int(data->running))
+            break;
 
         Window *window = data->game_window;
         int window_width = window_get_width(window);
@@ -533,6 +549,19 @@ int render_portion(void *args) {
     return 0;
 }
 
+int load_lightmaps(void *args) {
+    LightmapLoad *load = (LightmapLoad *)args;
+
+    load->floor_light_map = lightmap_create(load->static_lights, load->static_lights_count, load->floor_map, (Vec3) {.z = -1.0}, SURFACE_TOP, load->cancel);
+    load->ceiling_light_map = lightmap_create(load->static_lights, load->static_lights_count, load->ceiling_map, (Vec3) {.z = 1.0 }, SURFACE_BOTTOM, load->cancel);
+    load->walls_light_map = lightmap_create(load->static_lights, load->static_lights_count, load->walls_map, (Vec3) {},
+                                            SURFACE_RIGHT | SURFACE_LEFT | SURFACE_FRONT | SURFACE_BACK, load->cancel);
+
+    thread_set_atomic_int(load->finished, 1);
+
+    return 0;
+}
+
 int main(void) {
     int result = 0;
 
@@ -546,6 +575,7 @@ int main(void) {
     Thread threads[max_threads] = {};
     ThreadData thread_data[max_threads] = {};
     AtomicInt running = NULL;
+    Thread lightmap_loader = NULL;
 
     /**
      *
@@ -556,9 +586,8 @@ int main(void) {
 
     int static_lights_count = 0;
     Light *world_static_lights = NULL;
-    LightMap *floor_light_map = NULL;
-    LightMap *ceiling_light_map = NULL;
-    LightMap *walls_light_map = NULL;
+    LightmapLoad lightmap_load = {};
+    int lightmaps_loaded = 0;
 
     double *z_buffer = NULL;
     RayHit *rays = NULL;
@@ -628,11 +657,6 @@ int main(void) {
     get_world_static_lights(&ceiling_map, &world_static_lights, &static_lights_count, (Vec3) {.z = 0.5});
     get_world_static_lights(&walls_map, &world_static_lights, &static_lights_count, (Vec3) {});
 
-    floor_light_map = lightmap_create(world_static_lights, static_lights_count, &floor_map, (Vec3) {.z = -1.0}, SURFACE_TOP);
-    ceiling_light_map = lightmap_create(world_static_lights, static_lights_count, &ceiling_map, (Vec3) {.z = 1.0 }, SURFACE_BOTTOM);
-    walls_light_map = lightmap_create(world_static_lights, static_lights_count, &walls_map, (Vec3) {},
-                                      SURFACE_RIGHT | SURFACE_LEFT | SURFACE_FRONT | SURFACE_BACK);
-
     z_buffer = calloc(window_get_width(window), sizeof(double));
 
     running = thread_create_atomic_int();
@@ -645,11 +669,8 @@ int main(void) {
             .player = &player,
             .rays_arr = &rays,
             .walls_map = &walls_map,
-            .walls_light_map = walls_light_map,
             .floor_map = &floor_map,
-            .floor_light_map = floor_light_map,
             .ceiling_map = &ceiling_map,
-            .ceiling_light_map = ceiling_light_map,
             .game_window = window,
             .running = running,
             .start = thread_create_semaphore(0),
@@ -658,6 +679,24 @@ int main(void) {
         };
 
         threads[i] = thread_create(render_portion, "thread", &thread_data[i]);
+    }
+
+    lightmap_load = (LightmapLoad) {
+        .static_lights = world_static_lights,
+        .static_lights_count = static_lights_count,
+        .walls_map = &walls_map,
+        .floor_map = &floor_map,
+        .ceiling_map = &ceiling_map,
+        .cancel = thread_create_atomic_int(),
+        .finished = thread_create_atomic_int(),
+    };
+
+    lightmap_loader = thread_create(load_lightmaps, "lightmaps", &lightmap_load);
+
+    if (!lightmap_loader) {
+        utils_log(LOG_ERROR, "Couldn't create the thread that loads the lightmaps");
+        result = 1;
+        goto cleanup;
     }
 
     while (!window_should_quit(window)) {
@@ -686,6 +725,28 @@ int main(void) {
                 rays = realloc(rays, sizeof(RayHit) * window_get_width(window));
                 break;
             }
+        }
+
+        if (!lightmaps_loaded) {
+            if (!thread_get_atomic_int(lightmap_load.finished)) {
+                window_clear_surface(window);
+                window_draw_text(window, (Vec2) {.x = 0.45, .y = 0.5}, "./assets/fonts/default.ttf", 30.0, "LOADING...");
+                window_flip(window);
+
+                time_end_loop = utils_get_current_time_ns();
+                continue;
+            }
+
+            thread_wait(lightmap_loader);
+            lightmap_loader = NULL;
+
+            for (int i = 0; i < max_threads; i++) {
+                thread_data[i].walls_light_map = lightmap_load.walls_light_map;
+                thread_data[i].floor_light_map = lightmap_load.floor_light_map;
+                thread_data[i].ceiling_light_map = lightmap_load.ceiling_light_map;
+            }
+
+            lightmaps_loaded = 1;
         }
 
         Vec2 player_look_at = vec2_from_angle(player.camera.look_at);
@@ -749,6 +810,16 @@ int main(void) {
     }
 
 cleanup:
+    if (lightmap_loader) {
+        thread_set_atomic_int(lightmap_load.cancel, 1);
+        thread_wait(lightmap_loader);
+    }
+
+    if (lightmap_load.cancel)
+        thread_destroy_atomic_int(lightmap_load.cancel);
+    if (lightmap_load.finished)
+        thread_destroy_atomic_int(lightmap_load.finished);
+
     if (running != NULL) {
         thread_set_atomic_int(running, 0);
 
@@ -769,12 +840,14 @@ cleanup:
     if (textures)
         free_textures();
 
-    if (floor_light_map)
-        lightmap_free(floor_light_map);
-    if (ceiling_light_map)
-        lightmap_free(ceiling_light_map);
-    if (walls_light_map)
-        lightmap_free(walls_light_map);
+    if (lightmap_load.floor_light_map)
+        lightmap_free(lightmap_load.floor_light_map);
+    if (lightmap_load.ceiling_light_map)
+        lightmap_free(lightmap_load.ceiling_light_map);
+    if (lightmap_load.walls_light_map)
+        lightmap_free(lightmap_load.walls_light_map);
+    if (world_static_lights)
+        free(world_static_lights);
 
     if (rays)
         free(rays);

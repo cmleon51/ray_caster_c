@@ -29,7 +29,7 @@ double light_static_get_intensity(const Light *light, const Vec3 world_pos) {
 
 extern double lightmap_get_lumel_value(LightMap *lightmap, const Vec2 map_cell, const Vec2 norm_lumel, SURFACE_SIDE cell_side);
 
-LightMap *lightmap_create(Light *static_lights, int lights_count, Map *map, Vec3 cell_offset, SURFACE_SIDE cell_sides) {
+LightMap *lightmap_create(Light *static_lights, int lights_count, Map *map, Vec3 cell_offset, SURFACE_SIDE cell_sides, AtomicInt cancel) {
     LightMap *light_map = malloc(sizeof(LightMap));
     int sides_count = 0;
 
@@ -54,6 +54,11 @@ LightMap *lightmap_create(Light *static_lights, int lights_count, Map *map, Vec3
      *
     */
     for (int y = 0; y < map->height; y++) {
+        if (thread_get_atomic_int(cancel)) {
+            lightmap_free(light_map);
+            return NULL;
+        }
+
         for (int x = 0; x < map->width; x++) {
             Vec3 cell_center = {
                 .x = x + 0.5,

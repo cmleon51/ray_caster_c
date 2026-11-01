@@ -1,5 +1,6 @@
 #ifndef LIGHT_H
 #define LIGHT_H
+#include <platform/threading.h>
 #include <platform/utils.h>
 #include <stdlib.h>
 #include <linear_algebra/vec2.h>
@@ -63,7 +64,7 @@ inline double lightmap_get_lumel_value(LightMap *lightmap, const Vec2 map_cell, 
 
 double light_get_intensity(const Light *light, const Vec3 world_pos);
 
-LightMap *lightmap_create(Light *static_lights, int lights_count, Map *map, Vec3 cell_offset, SURFACE_SIDE cell_sides);
+LightMap *lightmap_create(Light *static_lights, int lights_count, Map *map, Vec3 cell_offset, SURFACE_SIDE cell_sides, AtomicInt cancel);
 
 void lightmap_free(LightMap *lightmap);
 
