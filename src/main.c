@@ -578,6 +578,12 @@ int main(void) {
 
     Window *window = window_create();
 
+    if (!window) {
+        utils_log(LOG_ERROR, "Couldn't create the application's window");
+        result = 1;
+        goto cleanup;
+    }
+
     if ((result = load_textures()) != 0) {
         goto cleanup;
     }
